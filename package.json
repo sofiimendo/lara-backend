@@ -1,0 +1,28 @@
+{
+  "name": "lara-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API de productos, pedidos y administración de Lara Pastelería",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "packageManager": "pnpm@11.17.0",
+  "author": "Sofía Mendoza y Yamila Valdez Aguilar",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
