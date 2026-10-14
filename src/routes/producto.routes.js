@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import * as productoController from '../controllers/producto.controller.js'
 import { validarBody } from '../middlewares/validarBody.js'
+import { autenticar, soloAdmin } from '../middlewares/autenticar.js'
 import {
   crearProductoSchema,
   actualizarProductoSchema,
@@ -14,16 +15,25 @@ router.get('/:id', productoController.obtenerProducto)
 
 router.post(
   '/',
+  autenticar,
+  soloAdmin,
   validarBody(crearProductoSchema),
   productoController.crearProducto
 )
 
 router.patch(
   '/:id',
+  autenticar,
+  soloAdmin,
   validarBody(actualizarProductoSchema),
   productoController.actualizarProducto
 )
 
-router.delete('/:id', productoController.eliminarProducto)
+router.delete(
+  '/:id',
+  autenticar,
+  soloAdmin,
+  productoController.eliminarProducto
+)
 
 export default router
