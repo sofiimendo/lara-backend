@@ -1,8 +1,16 @@
 # Lara Backend
 
-API de Lara Pastelería y Lara Stock, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
+API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
 
-Incluye conexión a MongoDB Atlas, operaciones de productos con validaciones y autenticación de administración. La conexión con la landing existente en React está pendiente.
+Incluye MongoDB Atlas, CRUD de productos y pedidos, validación de datos y autenticación de administración. La integración con la landing en React está pendiente.
+
+## Proyectos relacionados
+
+| Proyecto | Descripción |
+|---|---|
+| lara-stock | Trabajo anterior de backend. |
+| lara-pasteleria | Landing desarrollada en React. |
+| lara-backend | API actual que se conectará con la landing. |
 
 ## Tecnologías
 
@@ -10,8 +18,7 @@ Incluye conexión a MongoDB Atlas, operaciones de productos con validaciones y a
 - Express
 - MongoDB Atlas y Mongoose
 - Zod
-- bcryptjs
-- jsonwebtoken
+- bcryptjs y jsonwebtoken
 - express-rate-limit
 - cors y dotenv
 - nodemon para desarrollo
@@ -20,7 +27,7 @@ Incluye conexión a MongoDB Atlas, operaciones de productos con validaciones y a
 
 Necesitás Node.js con soporte para `fetch`, pnpm, acceso al repositorio y una conexión de MongoDB Atlas.
 
-### 1. Clonar el repositorio
+### 1. Clonar
 
 ```bash
 git clone https://github.com/sofiimendo/lara-backend.git
@@ -40,8 +47,6 @@ pnpm install --frozen-lockfile
 
 Copiá `.env.example` y nombrá la copia `.env`.
 
-Completá:
-
 | Variable | Uso |
 |---|---|
 | PORT | Puerto de la API. Usamos 4000. |
@@ -49,7 +54,7 @@ Completá:
 | FRONTEND_URL | Dirección del frontend. En desarrollo: http://localhost:5173. |
 | JWT_SECRET | Secreto para firmar y verificar tokens. |
 
-Generá el secreto con:
+Generá el secreto:
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
@@ -57,26 +62,28 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 Copiá el resultado como valor de `JWT_SECRET` en `.env`.
 
-La dirección de MongoDB en `.env.example` es una plantilla y debe completarse. En Atlas, habilitá la IP actual de tu computadora y verificá los permisos del usuario de base de datos.
+La conexión de `.env.example` es una plantilla que debe completarse.
+
+En Atlas, habilitá la IP actual de tu computadora y verificá los permisos del usuario de base de datos. Si cambiás de Wi-Fi y cambia tu IP pública, puede ser necesario habilitar la nueva IP.
 
 Cada integrante configura su propio `.env`. No subir contraseñas, secretos ni tokens a GitHub.
 
 Reiniciá el servidor después de cambiar `.env`.
 
-### 4. Iniciar el servidor
+### 4. Iniciar
 
 ```bash
 pnpm dev
 ```
 
-Respuesta esperada en la terminal:
+Respuesta esperada:
 
 ```text
 Conectado a MongoDB
 API de Lara disponible en http://localhost:4000
 ```
 
-Dejá esa terminal abierta y usá otra para ejecutar las pruebas.
+Dejá esa terminal abierta y usá otra para las pruebas. Esperá a que nodemon termine de reiniciar después de guardar archivos.
 
 ## Comprobar la API
 
@@ -86,7 +93,7 @@ Abrí:
 http://localhost:4000/api/health
 ```
 
-Respuesta esperada:
+Respuesta:
 
 ```json
 {
@@ -95,13 +102,13 @@ Respuesta esperada:
 }
 ```
 
-La dirección raíz `http://localhost:4000` no tiene una ruta definida y responde 404.
+La dirección raíz no tiene una ruta definida y responde 404.
 
 ## Crear una cuenta administradora
 
-No existe un registro público de administradores.
+No existe registro público de administradores.
 
-Para crear una cuenta, completá temporalmente en `.env`:
+Completá temporalmente en `.env`:
 
 ```dotenv
 ADMIN_NOMBRE="Nombre de la cuenta"
@@ -124,94 +131,100 @@ Conectado a MongoDB
 Cuenta administradora creada correctamente
 ```
 
-El script guarda un hash generado con bcrypt. Si el email ya existe, no reemplaza la cuenta.
+El script guarda un hash con bcrypt. Si el email existe, no reemplaza la cuenta.
 
-Después de crearla, guardá las credenciales en un gestor de contraseñas y eliminá las tres variables `ADMIN_*` de `.env`.
+Guardá las credenciales en un gestor de contraseñas y eliminá las variables `ADMIN_*` de `.env`.
 
-El email de ejemplo sirve para pruebas. Para la cuenta definitiva, usá un correo al que Lara tenga acceso. Actualmente no se envían correos ni existe recuperación de contraseña.
+Para la cuenta definitiva, usá un correo al que Lara tenga acceso. Actualmente no se envían correos ni existe recuperación de contraseña.
 
-## Login
+## Autenticación
 
 | Método | Ruta | Acceso |
 |---|---|---|
-| POST | /api/auth/login | Público, con límite de intentos |
+| POST | /api/auth/login | Público, con límite de intentos. |
 
 Enviar JSON con `email` y `password`.
 
-Un login correcto responde 200 con:
+Un login correcto responde 200 con `message`, `token` y `usuario`. Los datos del usuario incluyen id, nombre, email y rol.
 
-- `message`
-- `token`
-- `usuario`: id, nombre, email y rol
-
-El token vence en una hora. Para acceder a operaciones protegidas, enviarlo en este encabezado:
+El token vence en una hora. Las operaciones protegidas requieren:
 
 ```text
 Authorization: Bearer TOKEN
 ```
 
-Las credenciales incorrectas responden 401. El login limita a 10 intentos fallidos por IP en una ventana de 15 minutos; al superar el límite responde 429.
+Las credenciales incorrectas responden 401. El login limita a 10 intentos fallidos por IP en 15 minutos; al superar el límite responde 429.
 
-## Rutas de productos
+Las rutas protegidas verifican el token y que la cuenta siga activa y tenga rol admin.
+
+## Productos
 
 | Método | Ruta | Acción | Acceso |
 |---|---|---|---|
-| GET | /api/productos | Listar productos | Público |
-| GET | /api/productos/:id | Obtener un producto | Público |
-| POST | /api/productos | Crear un producto | Admin |
-| PATCH | /api/productos/:id | Actualizar campos | Admin |
-| DELETE | /api/productos/:id | Eliminar un producto | Admin |
+| GET | /api/productos | Listar. | Público |
+| GET | /api/productos/:id | Obtener por ID. | Público |
+| POST | /api/productos | Crear. | Admin |
+| PUT | /api/productos/:id | Actualizar todos los campos editables. | Admin |
+| PATCH | /api/productos/:id | Actualizar campos parciales. | Admin |
+| DELETE | /api/productos/:id | Eliminar. | Admin |
 
-Para crear o actualizar, enviar JSON con `Content-Type: application/json`.
+Para escribir datos, enviar `Content-Type: application/json`.
 
-Al crear, `nombre` y `precio` son obligatorios. Son opcionales:
+Campos editables:
 
+- nombre
 - descripcion
+- precio
 - categoria
 - imagen
 - disponible
 
-El precio debe ser un número mayor o igual a cero. Se rechazan campos desconocidos y actualizaciones vacías.
+POST exige nombre y precio. Los demás campos son opcionales.
 
-Las consultas públicas actuales devuelven todos los productos, incluidos los no disponibles. El filtrado del catálogo queda pendiente.
+PUT exige los seis campos. Descripción e imagen pueden ser textos vacíos. Conserva el ID y la fecha de creación.
 
-Las operaciones protegidas verifican el token y que la cuenta siga activa y tenga rol admin.
+PATCH exige al menos un campo editable.
+
+El precio debe ser un número mayor o igual a cero. Se rechazan campos desconocidos.
+
+La creación responde 201. Las demás operaciones exitosas responden 200. Un ID inválido responde 400 y un producto inexistente, 404.
+
+Las consultas públicas actuales incluyen productos no disponibles. El filtrado del catálogo queda pendiente.
+
+## Pedidos
+
+| Método | Ruta | Acción | Acceso |
+|---|---|---|---|
+| POST | /api/pedidos | Crear una consulta. | Público, con límite |
+| GET | /api/pedidos | Listar. | Admin |
+| GET | /api/pedidos/:id | Obtener por ID. | Admin |
+| PUT | /api/pedidos/:id | Actualizar los datos del formulario. | Admin |
+| PATCH | /api/pedidos/:id/estado | Cambiar estado. | Admin |
+| DELETE | /api/pedidos/:id | Eliminar. | Admin |
+
+Crear una consulta no confirma una reserva. Entra con estado `nuevo`.
+
+PUT conserva el estado actual. DELETE elimina el registro; usar `cancelado` cuando se quiera conservar el historial.
+
+La documentación de campos, validaciones, respuestas e integración está en [PEDIDOS.md](./PEDIDOS.md).
 
 ## Pruebas manuales
 
-Con el servidor funcionando, ejecutá en otra terminal:
+Con el servidor funcionando, ejecutar en otra terminal:
 
-### Probar login
+| Script | Prueba |
+|---|---|
+| `node scripts/probarLogin.js` | Login y recepción de token. |
+| `node scripts/probarAccesoAdmin.js` | Crear y eliminar un producto con acceso admin. |
+| `node scripts/probarPutProducto.js` | PUT completo e incompleto de productos. |
+| `node scripts/probarPedidoAdmin.js` | Rechazo de un estado inválido en un pedido existente. |
+| `node scripts/probarCrudPedido.js` | PUT y DELETE de un pedido de prueba. |
 
-```bash
-node scripts/probarLogin.js
-```
+Los scripts piden credenciales y no imprimen el token. Las contraseñas se ven al escribirlas; no compartirlas en capturas ni mensajes.
 
-Ingresá el email y la contraseña cuando se soliciten.
+Las pruebas usan la base configurada en `.env`. Los scripts que crean registros de prueba intentan eliminarlos al terminar. Si la limpieza falla, revisá el ID informado.
 
-El script muestra el estado HTTP y confirma si recibió un token, sin imprimirlo.
-
-### Probar acceso de administración
-
-```bash
-node scripts/probarAccesoAdmin.js
-```
-
-El script inicia sesión, crea un producto de prueba y lo elimina usando el token.
-
-Resultado esperado:
-
-```text
-Login HTTP: 200
-Crear HTTP: 201
-Mensaje: Producto creado correctamente
-Eliminar HTTP: 200
-Mensaje: Producto eliminado correctamente
-```
-
-Las contraseñas se ven mientras se escriben en estos scripts. No compartir capturas ni salidas que incluyan credenciales.
-
-Estas pruebas usan la base configurada en `.env`. Si la eliminación falla, revisá y retir á el producto de prueba pendiente.
+Las pruebas y la colección exportada de Postman están pendientes.
 
 ## Organización
 
@@ -228,13 +241,13 @@ src/
   utils/
 ```
 
-- `scripts`: creación de cuentas y pruebas manuales.
+- `scripts`: creación de cuentas y pruebas.
 - `config`: conexión a MongoDB.
-- `controllers`: respuestas de la API.
-- `middlewares`: validación, autenticación y manejo de errores.
-- `models`: estructura de los documentos.
+- `controllers`: respuestas HTTP.
+- `middlewares`: validación, autenticación y errores.
+- `models`: estructura de documentos.
 - `routes`: direcciones y métodos.
-- `schemas`: validaciones con Zod.
+- `schemas`: validación con Zod.
 - `services`: operaciones y lógica del backend.
 - `utils`: utilidades compartidas.
 
@@ -256,14 +269,16 @@ Creá una rama para tu tarea:
 git switch -c feat/nombre-de-la-tarea
 ```
 
-Al terminar, revisá los cambios, agregá los archivos correspondientes y creá un commit. Subí la rama y abrí un Pull Request hacia `main`.
+Revisá los cambios, creá un commit, subí la rama y abrí un Pull Request hacia `main`.
 
-Coordiná los archivos que vas a modificar para evitar trabajar simultáneamente sobre los mismos.
+Coordiná los archivos que vas a modificar con la otra integrante.
 
-## Próximos pasos
+## Pendientes para la entrega
 
-- Gestión de pedidos.
-- Administración de cuentas autorizadas.
-- Conexión con la landing en React.
-- Panel de administración.
-- Configuración y publicación del backend.
+- CRUD de cuentas autorizadas.
+- Pruebas de todos los endpoints con Postman.
+- Colección de Postman exportada y enlazada.
+- Integración con la landing y el panel de administración.
+- Despliegue de la API en Render.
+- URL publicada documentada.
+- Entrega por Discord con nombres y emails de las integrantes.

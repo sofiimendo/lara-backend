@@ -21,13 +21,38 @@ export async function obtenerPedidoPorId(id) {
   return Pedido.findById(id)
 }
 
+export async function reemplazarPedido(id, datos) {
+  return Pedido.findByIdAndUpdate(
+    id,
+    {
+      $set: {
+        nombre: datos.nombre,
+        whatsapp: datos.whatsapp,
+        fecha: datos.fecha,
+        tipoEvento: datos.tipoEvento,
+        pedido: datos.pedido,
+        cantidadPersonas: datos.cantidadPersonas,
+        detalles: datos.detalles,
+      },
+    },
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    }
+  )
+}
+
 export async function actualizarEstadoPedido(id, estado) {
   return Pedido.findByIdAndUpdate(
     id,
     { $set: { estado } },
     {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }
   )
+}
+
+export async function eliminarPedido(id) {
+  return Pedido.findByIdAndDelete(id)
 }

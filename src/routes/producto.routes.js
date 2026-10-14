@@ -4,6 +4,7 @@ import { validarBody } from '../middlewares/validarBody.js'
 import { autenticar, soloAdmin } from '../middlewares/autenticar.js'
 import {
   crearProductoSchema,
+  reemplazarProductoSchema,
   actualizarProductoSchema,
 } from '../schemas/producto.schema.js'
 
@@ -19,6 +20,14 @@ router.post(
   soloAdmin,
   validarBody(crearProductoSchema),
   productoController.crearProducto
+)
+
+router.put(
+  '/:id',
+  autenticar,
+  soloAdmin,
+  validarBody(reemplazarProductoSchema),
+  productoController.actualizarProducto
 )
 
 router.patch(

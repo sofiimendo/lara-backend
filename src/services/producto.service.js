@@ -17,7 +17,7 @@ export async function actualizarProducto(id, datos) {
     id,
     { $set: datos },
     {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }
   )
