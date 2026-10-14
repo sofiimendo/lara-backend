@@ -5,6 +5,7 @@ import { autenticar, soloAdmin } from '../middlewares/autenticar.js'
 import { validarBody } from '../middlewares/validarBody.js'
 import {
   crearPedidoSchema,
+  reemplazarPedidoSchema,
   actualizarEstadoPedidoSchema,
 } from '../schemas/pedido.schema.js'
 
@@ -41,12 +42,27 @@ router.get(
   pedidoController.obtenerPedido
 )
 
+router.put(
+  '/:id',
+  autenticar,
+  soloAdmin,
+  validarBody(reemplazarPedidoSchema),
+  pedidoController.reemplazarPedido
+)
+
 router.patch(
   '/:id/estado',
   autenticar,
   soloAdmin,
   validarBody(actualizarEstadoPedidoSchema),
   pedidoController.actualizarEstadoPedido
+)
+
+router.delete(
+  '/:id',
+  autenticar,
+  soloAdmin,
+  pedidoController.eliminarPedido
 )
 
 export default router

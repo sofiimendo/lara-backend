@@ -44,6 +44,23 @@ function obtenerFechaMinima(pedido) {
   return fecha.toISOString().slice(0, 10)
 }
 
+function validarAnticipacion(datos, contexto) {
+  if (!fechaValida(datos.fecha)) return
+
+  if (datos.fecha < obtenerFechaMinima(datos.pedido)) {
+    const requiereAnticipacion =
+      datos.pedido === 'Torta' || datos.pedido === 'Medialunas'
+
+    contexto.addIssue({
+      code: 'custom',
+      path: ['fecha'],
+      message: requiereAnticipacion
+        ? 'Las tortas y medialunas requieren al menos 5 días de anticipación'
+        : 'La fecha no puede ser anterior a hoy',
+    })
+  }
+}
+
 const cantidadPersonasSchema = z
   .union([
     z.number(),
@@ -57,59 +74,55 @@ const cantidadPersonasSchema = z
       .max(Number.MAX_SAFE_INTEGER, 'La cantidad es demasiado grande')
   )
 
+const camposPedido = {
+  nombre: z
+    .string()
+    .trim()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(80, 'El nombre no puede superar los 80 caracteres'),
+  whatsapp: z
+    .string()
+    .trim()
+    .max(25, 'El WhatsApp no puede superar los 25 caracteres')
+    .refine(
+      (valor) => {
+        const digitos = valor.replace(/\D/g, '')
+
+        return (
+          /^\+?[0-9\s()-]+$/.test(valor) &&
+          digitos.length >= 8 &&
+          digitos.length <= 15
+        )
+      },
+      'Ingresá un WhatsApp válido, con código de área'
+    ),
+  fecha: z
+    .string()
+    .refine(fechaValida, 'Seleccioná una fecha válida'),
+  tipoEvento: z.enum(['', 'Cumpleaños', 'Reunión', 'Otro']),
+  pedido: z.enum(opcionesPedido),
+  cantidadPersonas: cantidadPersonasSchema,
+  detalles: z
+    .string()
+    .trim()
+    .max(1000, 'Los detalles no pueden superar los 1000 caracteres'),
+}
+
 export const crearPedidoSchema = z
   .strictObject({
-    nombre: z
-      .string()
-      .trim()
-      .min(2, 'El nombre debe tener al menos 2 caracteres')
-      .max(80, 'El nombre no puede superar los 80 caracteres'),
-    whatsapp: z
-      .string()
-      .trim()
-      .max(25, 'El WhatsApp no puede superar los 25 caracteres')
-      .refine(
-        (valor) => {
-          const digitos = valor.replace(/\D/g, '')
-
-          return (
-            /^\+?[0-9\s()-]+$/.test(valor) &&
-            digitos.length >= 8 &&
-            digitos.length <= 15
-          )
-        },
-        'Ingresá un WhatsApp válido, con código de área'
-      ),
-    fecha: z
-      .string()
-      .refine(fechaValida, 'Seleccioná una fecha válida'),
-    tipoEvento: z
-      .enum(['', 'Cumpleaños', 'Reunión', 'Otro'])
-      .optional(),
-    pedido: z.enum(opcionesPedido),
-    cantidadPersonas: cantidadPersonasSchema.optional(),
-    detalles: z
-      .string()
-      .trim()
-      .max(1000, 'Los detalles no pueden superar los 1000 caracteres')
-      .optional(),
+    nombre: camposPedido.nombre,
+    whatsapp: camposPedido.whatsapp,
+    fecha: camposPedido.fecha,
+    tipoEvento: camposPedido.tipoEvento.optional(),
+    pedido: camposPedido.pedido,
+    cantidadPersonas: camposPedido.cantidadPersonas.optional(),
+    detalles: camposPedido.detalles.optional(),
   })
-  .superRefine((datos, contexto) => {
-    if (!fechaValida(datos.fecha)) return
+  .superRefine(validarAnticipacion)
 
-    if (datos.fecha < obtenerFechaMinima(datos.pedido)) {
-      const requiereAnticipacion =
-        datos.pedido === 'Torta' || datos.pedido === 'Medialunas'
-
-      contexto.addIssue({
-        code: 'custom',
-        path: ['fecha'],
-        message: requiereAnticipacion
-          ? 'Las tortas y medialunas requieren al menos 5 días de anticipación'
-          : 'La fecha no puede ser anterior a hoy',
-      })
-    }
-  })
+export const reemplazarPedidoSchema = z
+  .strictObject(camposPedido)
+  .superRefine(validarAnticipacion)
 
 export const actualizarEstadoPedidoSchema = z.strictObject({
   estado: z.enum([

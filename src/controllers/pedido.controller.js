@@ -63,6 +63,31 @@ export async function obtenerPedido(req, res, next) {
   }
 }
 
+export async function reemplazarPedido(req, res, next) {
+  try {
+    const { id } = req.params
+
+    if (!validarId(id, res)) return
+
+    const pedido = await pedidoService.reemplazarPedido(id, req.body)
+
+    if (!pedido) {
+      return res.status(404).json({
+        message: 'Pedido no encontrado',
+      })
+    }
+
+    res.set('Cache-Control', 'no-store')
+
+    return res.status(200).json({
+      message: 'Datos del pedido actualizados correctamente',
+      pedido,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function actualizarEstadoPedido(req, res, next) {
   try {
     const { id } = req.params
@@ -85,6 +110,30 @@ export async function actualizarEstadoPedido(req, res, next) {
     return res.status(200).json({
       message: 'Estado del pedido actualizado correctamente',
       pedido,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function eliminarPedido(req, res, next) {
+  try {
+    const { id } = req.params
+
+    if (!validarId(id, res)) return
+
+    const pedido = await pedidoService.eliminarPedido(id)
+
+    if (!pedido) {
+      return res.status(404).json({
+        message: 'Pedido no encontrado',
+      })
+    }
+
+    res.set('Cache-Control', 'no-store')
+
+    return res.status(200).json({
+      message: 'Pedido eliminado correctamente',
     })
   } catch (error) {
     next(error)
