@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import productoRoutes from './routes/producto.routes.js'
 import authRoutes from './routes/auth.routes.js'
+import pedidoRoutes from './routes/pedido.routes.js'
 import { manejarErrores } from './middlewares/manejarErrores.js'
 
 const app = express()
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes)
 app.use('/api/productos', productoRoutes)
+app.use('/api/pedidos', pedidoRoutes)
 
 app.use((req, res) => {
   res.status(404).json({
