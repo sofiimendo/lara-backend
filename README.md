@@ -31,9 +31,6 @@ Necesitás Node.js con soporte para `fetch`, pnpm, acceso al repositorio y una c
 
 ```bash
 git clone https://github.com/sofiimendo/lara-backend.git
-```
-
-```bash
 cd lara-backend
 ```
 
@@ -208,7 +205,7 @@ PUT conserva el estado actual. DELETE elimina el registro; usar `cancelado` cuan
 
 La documentación de campos, validaciones, respuestas e integración está en [PEDIDOS.md](./PEDIDOS.md).
 
-## Pruebas manuales
+## Pruebas manuales con scripts
 
 Con el servidor funcionando, ejecutar en otra terminal:
 
@@ -224,11 +221,65 @@ Los scripts piden credenciales y no imprimen el token. Las contraseñas se ven a
 
 Las pruebas usan la base configurada en `.env`. Los scripts que crean registros de prueba intentan eliminarlos al terminar. Si la limpieza falla, revisá el ID informado.
 
-Las pruebas y la colección exportada de Postman están pendientes.
+## Pruebas con Postman
+
+La colección está disponible en:
+
+[Lara Pastelería API — colección de Postman](./postman/Lara-Pasteleria-API.postman_collection.json)
+
+Actualmente contiene 13 solicitudes: login, CRUD de productos y casos de error de productos. Fueron ejecutadas manualmente en Postman. Incluye un ejemplo guardado de producto inexistente.
+
+Todavía no contiene pruebas automatizadas con aserciones. Las solicitudes de pedidos, usuarios y los casos adicionales de autenticación se incorporarán en las siguientes etapas.
+
+### Configuración
+
+1. Iniciar el backend con `pnpm dev`.
+2. En Postman, usar Import y seleccionar el archivo de la colección.
+3. Crear un entorno local llamado `Lara Local`.
+4. Agregar las siguientes variables y seleccionar ese entorno.
+
+| Variable | Valor |
+|---|---|
+| adminEmail | Email de una administradora activa de prueba. |
+| adminPassword | Contraseña de esa administradora. |
+| token | Token recibido al iniciar sesión, sin comillas. |
+| productoID | `_id` del producto creado para las pruebas. |
+
+La colección define `baseUrl` como `http://localhost:4000`. Puede modificarse para apuntar a otra instancia de la API.
+
+Los nombres de las variables distinguen mayúsculas y minúsculas: usar `productoID`, con ID en mayúsculas.
+
+Guardar credenciales y token únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales. La colección utiliza referencias a variables y no incluye credenciales reales.
+
+### Ejecución manual
+
+1. Ejecutar `Listar productos`: debe responder 200.
+2. Ejecutar `Login admin`: debe responder 200. Copiar el token recibido a la variable local `token`.
+3. Ejecutar `Crear producto`: debe responder 201. Copiar el `_id` recibido a `productoID`.
+4. Ejecutar `Consultar producto por ID`: debe responder 200.
+5. Ejecutar `Actualizar producto con PUT`: debe responder 200 y conservar `_id` y `createdAt`.
+6. Ejecutar `Actualizar producto parcial`: debe responder 200 y modificar solo precio y disponibilidad.
+7. Ejecutar `Rechazar producto negativo`: debe responder 400.
+8. Ejecutar `Rechazar PUT incompleto`: debe responder 400.
+9. Ejecutar `Rechazar edicion sin token`: debe responder 401.
+10. Ejecutar `Rechazar token invalido`: debe responder 401.
+11. Ejecutar `Rechazar ID invalido`: debe responder 400.
+12. Consultar nuevamente el producto para comprobar que los intentos rechazados no cambiaron sus datos.
+13. Ejecutar `Eliminar producto`: debe responder 200.
+14. Ejecutar nuevamente `Consultar producto por ID`: debe responder 404.
+
+La solicitud `Consultar producto inexistente` conserva el ID de un producto de prueba eliminado e incluye el ejemplo `404 — Producto inexistente`. En otra base, comprobar primero que ese ID no exista.
+
+El orden de la lista lateral no representa el orden de ejecución: seguir los pasos anteriores.
+
+El token vence en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar la variable local `token`.
+
+Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar productos de prueba y eliminarlos al terminar.
 
 ## Organización
 
 ```text
+postman/
 scripts/
 src/
   config/
@@ -241,6 +292,7 @@ src/
   utils/
 ```
 
+- `postman`: colección exportada para pruebas de la API.
 - `scripts`: creación de cuentas y pruebas.
 - `config`: conexión a MongoDB.
 - `controllers`: respuestas HTTP.
@@ -257,9 +309,6 @@ Desde una copia sin cambios pendientes:
 
 ```bash
 git switch main
-```
-
-```bash
 git pull --ff-only
 ```
 
@@ -275,10 +324,10 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 
 ## Pendientes para la entrega
 
-- CRUD de cuentas autorizadas.
-- Pruebas de todos los endpoints con Postman.
-- Colección de Postman exportada y enlazada.
+- Revisar e integrar el CRUD de cuentas autorizadas a cargo de Yami.
+- Completar las pruebas de pedidos, usuarios y autenticación con Postman.
+- Unificar y actualizar la colección exportada.
 - Integración con la landing y el panel de administración.
 - Despliegue de la API en Render.
 - URL publicada documentada.
-- Entrega por Discord con nombres y emails de las integrantes.
+- Entrega por mail con nombres de las integrantes.
