@@ -7,10 +7,11 @@ const nombreSchema = z
   .max(100, 'El nombre no puede superar los 100 caracteres')
 
 const emailSchema = z
-  .email('El email no es válido')
+  .string()
   .trim()
   .toLowerCase()
   .max(254, 'El email no puede superar los 254 caracteres')
+  .pipe(z.email('El email no es válido'))
 
 const passwordSchema = z
   .string()

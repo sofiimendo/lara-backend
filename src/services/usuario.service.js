@@ -15,6 +15,10 @@ function validarId(id) {
   }
 }
 
+function esMismoUsuario(id, usuarioActualId) {
+  return String(id).toLowerCase() === String(usuarioActualId).toLowerCase()
+}
+
 function usuarioSeguro(usuario) {
   if (!usuario) return null
 
@@ -77,7 +81,7 @@ export async function actualizarUsuario(id, datos, usuarioActualId) {
   validarId(id)
 
   if (
-    String(id) === String(usuarioActualId) &&
+    esMismoUsuario(id, usuarioActualId) &&
     datos.activo === false
   ) {
     throw crearError(
@@ -119,7 +123,7 @@ export async function actualizarUsuario(id, datos, usuarioActualId) {
 export async function eliminarUsuario(id, usuarioActualId) {
   validarId(id)
 
-  if (String(id) === String(usuarioActualId)) {
+  if (esMismoUsuario(id, usuarioActualId)) {
     throw crearError(
       'No podés eliminar tu propia cuenta',
       409
