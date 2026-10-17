@@ -3,6 +3,10 @@ export function manejarErrores(error, req, res, next) {
     return next(error)
   }
 
+  if (req.originalUrl.startsWith('/api/usuarios')) {
+    res.set('Cache-Control', 'no-store')
+  }
+
   if (error.type === 'entity.parse.failed') {
     return res.status(400).json({
       message: 'El JSON enviado no tiene un formato válido',
@@ -34,6 +38,14 @@ export function manejarErrores(error, req, res, next) {
   if (error.code === 11000) {
     return res.status(409).json({
       message: 'Ya existe un registro con esos datos únicos',
+    })
+  }
+
+  const estado = error.statusCode ?? error.status
+
+  if ([400, 401, 403, 404, 409].includes(estado)) {
+    return res.status(estado).json({
+      message: error.message,
     })
   }
 

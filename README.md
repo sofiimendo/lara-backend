@@ -154,6 +154,34 @@ Las credenciales incorrectas responden 401. El login limita a 10 intentos fallid
 
 Las rutas protegidas verifican el token y que la cuenta siga activa y tenga rol admin.
 
+## Usuarios
+
+El módulo de usuarios permite administrar las cuentas autorizadas para acceder al panel de administración de Lara Pastelería.
+
+No existe registro público. Todas las rutas requieren autenticación JWT y permisos de administrador.
+
+| Método | Ruta | Acción | Acceso |
+|---|---|---|---|
+| GET | /api/usuarios | Listar usuarios. | Admin |
+| GET | /api/usuarios/:id | Obtener usuario por ID. | Admin |
+| POST | /api/usuarios | Crear usuario. | Admin |
+| PUT | /api/usuarios/:id | Actualizar usuario. | Admin |
+| DELETE | /api/usuarios/:id | Eliminar usuario. | Admin |
+
+Para crear usuarios se requieren `nombre`, `email` y `password`. La contraseña debe tener al menos 12 caracteres y se almacena cifrada con bcrypt.
+
+Las cuentas nuevas reciben automáticamente el rol `admin` y quedan activas.
+
+Para actualizar usuarios se requieren `nombre`, `email` y `activo`.
+
+El backend impide que una cuenta administradora se elimine o desactive a sí misma. También rechaza emails duplicados y campos desconocidos.
+
+Las respuestas no incluyen el hash de la contraseña.
+
+Las cinco operaciones del CRUD fueron probadas manualmente, junto con las principales validaciones de seguridad.
+
+La documentación completa está en [USUARIOS.md](./USUARIOS.md).
+
 ## Productos
 
 | Método | Ruta | Acción | Acceso |
