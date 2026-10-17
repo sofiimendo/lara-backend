@@ -165,3 +165,58 @@ El panel de administración podrá utilizar estas rutas para gestionar las cuent
 El frontend deberá iniciar sesión mediante `/api/auth/login`, guardar el token de manera apropiada y enviarlo en las solicitudes protegidas.
 
 La integración con la landing y el panel de administración se realizará por separado.
+
+
+## Pruebas adicionales de seguridad y validaciones
+
+Se realizaron pruebas manuales desde PowerShell contra la API local conectada a MongoDB Atlas, utilizando una cuenta administradora y una cuenta temporal de prueba.
+
+### Actualización de usuarios
+
+- Se creó una cuenta temporal y se comprobó que podía iniciar sesión correctamente.
+- Se actualizó su nombre mediante `PUT /api/usuarios/:id`.
+- Se verificó que el campo `createdAt` conservara su valor original.
+- Se comprobó que la contraseña original continuara funcionando después de la actualización.
+- Se verificó que la cuenta permaneciera activa.
+
+### Desactivación y reactivación
+
+- Se desactivó la cuenta temporal mediante `PUT /api/usuarios/:id`.
+- Se comprobó que su JWT anterior fuera rechazado con HTTP 401 al intentar acceder a una ruta protegida.
+- Se verificó que una cuenta desactivada no pudiera iniciar sesión: HTTP 401.
+- Otra cuenta administradora reactivó al usuario temporal.
+- Se comprobó que el usuario reactivado pudiera volver a iniciar sesión con su contraseña original.
+
+### Protección de la propia cuenta
+
+Se verificó que las comparaciones de IDs funcionaran correctamente incluso cuando el identificador se enviaba en mayúsculas.
+
+- Intento de autodesactivación mediante `PUT /api/usuarios/:id`: HTTP 409.
+- Intento de autoeliminación mediante `DELETE /api/usuarios/:id`: HTTP 409.
+- Después de ambos intentos, se comprobó que la cuenta temporal seguía existiendo y permanecía activa.
+
+### Validación del email
+
+Se corrigió el esquema de Zod para normalizar el email antes de validar su formato.
+
+Se comprobó mediante una prueba del esquema que un email con espacios al principio y al final y letras mayúsculas se normalizara correctamente a minúsculas y sin espacios.
+
+### Colección de Postman
+
+Se agregaron cinco solicitudes a la carpeta `Usuarios` de `postman/Lara-Pasteleria-API.postman_collection.json`:
+
+- `POST /api/usuarios`
+- `GET /api/usuarios`
+- `GET /api/usuarios/:id`
+- `PUT /api/usuarios/:id`
+- `DELETE /api/usuarios/:id`
+
+Las solicitudes utilizan `{{baseUrl}}`, `{{token}}` y `{{usuarioId}}`. La contraseña de prueba se referencia mediante `{{passwordUsuarioPrueba}}`.
+
+No se incluyeron credenciales ni tokens reales en las nuevas solicitudes.
+
+### Limpieza de datos
+
+Al finalizar las pruebas, se eliminó correctamente la cuenta temporal de MongoDB Atlas.
+
+Todas las pruebas adicionales indicadas anteriormente finalizaron con los resultados esperados.
