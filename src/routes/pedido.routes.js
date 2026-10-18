@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
 import * as pedidoController from '../controllers/pedido.controller.js'
 import { autenticar, soloAdmin } from '../middlewares/autenticar.js'
+import { autenticarCliente } from '../middlewares/autenticarCliente.js'
 import { validarBody } from '../middlewares/validarBody.js'
 import {
   crearPedidoSchema,
@@ -23,9 +24,16 @@ const limitarConsultas = rateLimit({
 
 router.post(
   '/',
+  autenticarCliente,
   limitarConsultas,
   validarBody(crearPedidoSchema),
   pedidoController.crearPedido
+)
+
+router.get(
+  '/mis-pedidos',
+  autenticarCliente,
+  pedidoController.listarMisPedidos
 )
 
 router.get(
