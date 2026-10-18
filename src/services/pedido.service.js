@@ -1,7 +1,8 @@
 import Pedido from '../models/Pedido.js'
 
-export async function crearPedido(datos) {
+export async function crearPedido(datos, clienteId) {
   return Pedido.create({
+    cliente: clienteId,
     nombre: datos.nombre,
     whatsapp: datos.whatsapp,
     fecha: datos.fecha,
@@ -15,6 +16,10 @@ export async function crearPedido(datos) {
 
 export async function listarPedidos() {
   return Pedido.find().sort({ createdAt: -1 })
+}
+
+export async function listarPedidosDeCliente(clienteId) {
+  return Pedido.find({ cliente: clienteId }).sort({ createdAt: -1 })
 }
 
 export async function obtenerPedidoPorId(id) {
