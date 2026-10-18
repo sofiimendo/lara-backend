@@ -2,7 +2,7 @@
 
 API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
 
-Incluye MongoDB Atlas, CRUD de productos y pedidos, validación de datos y autenticación de administración. La integración con la landing en React está pendiente.
+Incluye MongoDB Atlas, CRUD de productos, pedidos y usuarios, validación de datos y autenticación de administración. La integración con la landing en React está pendiente.
 
 ## Proyectos relacionados
 
@@ -105,7 +105,7 @@ La dirección raíz no tiene una ruta definida y responde 404.
 
 No existe registro público de administradores.
 
-Completá temporalmente en `.env`:
+Para crear la primera cuenta, completá temporalmente en `.env`:
 
 ```dotenv
 ADMIN_NOMBRE="Nombre de la cuenta"
@@ -131,6 +131,8 @@ Cuenta administradora creada correctamente
 El script guarda un hash con bcrypt. Si el email existe, no reemplaza la cuenta.
 
 Guardá las credenciales en un gestor de contraseñas y eliminá las variables `ADMIN_*` de `.env`.
+
+Las cuentas adicionales también pueden crearse mediante el módulo de usuarios con una sesión administradora.
 
 Para la cuenta definitiva, usá un correo al que Lara tenga acceso. Actualmente no se envían correos ni existe recuperación de contraseña.
 
@@ -168,15 +170,15 @@ No existe registro público. Todas las rutas requieren autenticación JWT y perm
 | PUT | /api/usuarios/:id | Actualizar usuario. | Admin |
 | DELETE | /api/usuarios/:id | Eliminar usuario. | Admin |
 
-Para crear usuarios se requieren `nombre`, `email` y `password`. La contraseña debe tener al menos 12 caracteres y se almacena cifrada con bcrypt.
+Para crear usuarios se requieren `nombre`, `email` y `password`. La contraseña debe tener al menos 12 caracteres, no superar los 72 bytes en UTF-8 y se almacena como un hash con bcrypt.
 
 Las cuentas nuevas reciben automáticamente el rol `admin` y quedan activas.
 
-Para actualizar usuarios se requieren `nombre`, `email` y `activo`.
+Para actualizar usuarios se requieren `nombre`, `email` y `activo`. PUT conserva la contraseña y el rol.
 
 El backend impide que una cuenta administradora se elimine o desactive a sí misma. También rechaza emails duplicados y campos desconocidos.
 
-Las respuestas no incluyen el hash de la contraseña.
+Las respuestas no incluyen la contraseña ni su hash.
 
 Las cinco operaciones del CRUD fueron probadas manualmente, junto con las principales validaciones de seguridad.
 
@@ -229,7 +231,15 @@ Las consultas públicas actuales incluyen productos no disponibles. El filtrado 
 
 Crear una consulta no confirma una reserva. Entra con estado `nuevo`.
 
-PUT conserva el estado actual. DELETE elimina el registro; usar `cancelado` cuando se quiera conservar el historial.
+POST devuelve únicamente el ID y el estado del pedido, además del mensaje de recepción.
+
+PUT exige los siete campos del formulario y conserva el estado, el ID y la fecha de creación.
+
+DELETE elimina el registro; usar el estado `cancelado` cuando se quiera conservar el historial.
+
+Las tortas y medialunas requieren al menos cinco días de anticipación. Los demás pedidos admiten fechas desde hoy. La validación utiliza la fecha de Buenos Aires.
+
+La creación pública está limitada a 10 solicitudes por IP en 15 minutos.
 
 La documentación de campos, validaciones, respuestas e integración está en [PEDIDOS.md](./PEDIDOS.md).
 
@@ -255,9 +265,17 @@ La colección está disponible en:
 
 [Lara Pastelería API — colección de Postman](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-Actualmente contiene 13 solicitudes: login, CRUD de productos y casos de error de productos. Fueron ejecutadas manualmente en Postman. Incluye un ejemplo guardado de producto inexistente.
+La colección contiene 29 solicitudes:
 
-Todavía no contiene pruebas automatizadas con aserciones. Las solicitudes de pedidos, usuarios y los casos adicionales de autenticación se incorporarán en las siguientes etapas.
+- 13 de autenticación y productos.
+- 11 en la carpeta Pedidos.
+- 5 en la carpeta Usuarios.
+
+Las solicitudes de productos y pedidos se ejecutaron manualmente en Postman.
+
+Las pruebas manuales del módulo de usuarios están documentadas en [USUARIOS.md](./USUARIOS.md). Queda completar su verificación en Postman y los casos adicionales de autenticación y límites de solicitudes.
+
+La colección no contiene pruebas automatizadas con aserciones. Guardar solicitudes no implica que los resultados se verifiquen automáticamente.
 
 ### Configuración
 
@@ -272,14 +290,17 @@ Todavía no contiene pruebas automatizadas con aserciones. Las solicitudes de pe
 | adminPassword | Contraseña de esa administradora. |
 | token | Token recibido al iniciar sesión, sin comillas. |
 | productoID | `_id` del producto creado para las pruebas. |
+| pedidoID | `id` devuelto al crear el pedido de prueba. |
+| usuarioId | `_id` del usuario creado para las pruebas. |
+| passwordUsuarioPrueba | Contraseña propia para crear un usuario de prueba; mínimo 12 caracteres y máximo 72 bytes en UTF-8. |
 
 La colección define `baseUrl` como `http://localhost:4000`. Puede modificarse para apuntar a otra instancia de la API.
 
-Los nombres de las variables distinguen mayúsculas y minúsculas: usar `productoID`, con ID en mayúsculas.
+Los nombres de las variables distinguen mayúsculas y minúsculas: usar `productoID` y `pedidoID`, con ID en mayúsculas, y `usuarioId`, con Id.
 
 Guardar credenciales y token únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales. La colección utiliza referencias a variables y no incluye credenciales reales.
 
-### Ejecución manual
+### Ejecución manual de productos
 
 1. Ejecutar `Listar productos`: debe responder 200.
 2. Ejecutar `Login admin`: debe responder 200. Copiar el token recibido a la variable local `token`.
@@ -298,11 +319,48 @@ Guardar credenciales y token únicamente como valores locales. No compartirlos n
 
 La solicitud `Consultar producto inexistente` conserva el ID de un producto de prueba eliminado e incluye el ejemplo `404 — Producto inexistente`. En otra base, comprobar primero que ese ID no exista.
 
-El orden de la lista lateral no representa el orden de ejecución: seguir los pasos anteriores.
+### Ejecución manual de pedidos
+
+1. Ejecutar `Login admin` y actualizar la variable local `token`.
+2. Abrir la carpeta `Pedidos`. Antes de crear o actualizar pedidos, ajustar las fechas de los cuerpos JSON: las tortas y medialunas requieren al menos cinco días de anticipación según la fecha de Buenos Aires. Las fechas guardadas en los ejemplos no se actualizan automáticamente.
+3. Ejecutar `Crear pedido publico`, sin autenticación: debe responder 201 con `pedido.id` y estado `nuevo`. Copiar ese `id` a `pedidoID`.
+4. Ejecutar `Consultar pedido por ID` y `Listar pedidos`: deben responder 200 con autenticación.
+5. Ejecutar `Cambiar estado del pedido`: debe responder 200 con estado `pendiente`.
+6. Ejecutar `Actualizar pedido`: debe responder 200 y conservar `_id`, `createdAt` y el estado `pendiente`.
+7. Ejecutar `Rechazar estado invalido`: debe responder 400.
+8. Ejecutar `Rechazar PUT de pedido incompleto`: debe responder 400.
+9. En `Rechazar torta sin anticipacion`, establecer la fecha de hoy en Buenos Aires para comprobar específicamente el mínimo de cinco días. Debe responder 400 con el mensaje de anticipación.
+10. Ejecutar `Rechazar listado de pedidos sin token`: debe responder 401.
+11. Ejecutar la solicitud de ID de pedido inválido, cuya URL termina en `/api/pedidos/id-invalido`: debe responder 400 con un token válido.
+12. Consultar nuevamente el pedido y comprobar que los intentos rechazados no cambiaron sus datos.
+13. Ejecutar `Eliminar pedido`: debe responder 200.
+14. Ejecutar nuevamente `Consultar pedido por ID`: debe responder 404.
+
+El pedido de prueba utilizado durante estas verificaciones fue eliminado. Para repetirlas, crear otro pedido y actualizar `pedidoID`.
+
+### Ejecución manual de usuarios
+
+La carpeta `Usuarios` conserva las cinco solicitudes aportadas por Yami.
+
+1. Iniciar sesión con una administradora activa y actualizar `token`.
+2. Completar `passwordUsuarioPrueba` únicamente como valor local.
+3. Ejecutar `Crear usuario`: debe responder 201. Copiar el `_id` recibido a `usuarioId`.
+4. Ejecutar `Listar usuarios` y `Consultar usuario por ID`: deben responder 200.
+5. Ejecutar `Actualizar usuario`: debe responder 200 y conservar la contraseña y el rol.
+6. Ejecutar `Eliminar usuario`: debe responder 200.
+7. Consultar nuevamente el usuario eliminado: debe responder 404.
+
+Usar una cuenta administradora distinta de la cuenta de prueba para realizar estas operaciones. El backend impide eliminar o desactivar la cuenta que está realizando la solicitud.
+
+Seguir también las validaciones y los resultados esperados de [USUARIOS.md](./USUARIOS.md). Eliminar la cuenta de prueba al terminar.
+
+### Consideraciones para las pruebas
+
+El orden de la lista lateral no representa el orden de ejecución: seguir los pasos de esta documentación.
 
 El token vence en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar la variable local `token`.
 
-Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar productos de prueba y eliminarlos al terminar.
+Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar registros de prueba y eliminarlos al terminar.
 
 ## Organización
 
@@ -352,10 +410,10 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 
 ## Pendientes para la entrega
 
-- Revisar e integrar el CRUD de cuentas autorizadas a cargo de Yami.
-- Completar las pruebas de pedidos, usuarios y autenticación con Postman.
-- Unificar y actualizar la colección exportada.
-- Integración con la landing y el panel de administración.
-- Despliegue de la API en Render.
-- URL publicada documentada.
-- Entrega por mail con nombres de las integrantes.
+- Completar la verificación de usuarios en Postman y los casos adicionales de autenticación y rate limiting.
+- Actualizar la colección y la documentación con los casos que se incorporen.
+- Integrar la landing y el panel de administración, a cargo de Yami.
+- Desplegar la API en Render y revisar variables de entorno, acceso a Atlas, CORS y configuración de proxy para rate limiting.
+- Probar la integración desde la web publicada.
+- Documentar las URLs publicadas.
+- Entregar por Discord con nombres y emails de ambas integrantes.
