@@ -30,7 +30,9 @@ function usuarioSeguro(usuario) {
 }
 
 export async function listarUsuarios() {
-  const usuarios = await Usuario.find().sort({ createdAt: -1 })
+  const usuarios = await Usuario.find({
+    rol: 'admin',
+  }).sort({ createdAt: -1 })
 
   return usuarios.map(usuarioSeguro)
 }
@@ -38,7 +40,10 @@ export async function listarUsuarios() {
 export async function obtenerUsuarioPorId(id) {
   validarId(id)
 
-  const usuario = await Usuario.findById(id)
+  const usuario = await Usuario.findOne({
+    _id: id,
+    rol: 'admin',
+  })
 
   if (!usuario) {
     throw crearError('Usuario no encontrado', 404)
@@ -91,8 +96,11 @@ export async function actualizarUsuario(id, datos, usuarioActualId) {
   }
 
   try {
-    const usuario = await Usuario.findByIdAndUpdate(
-      id,
+    const usuario = await Usuario.findOneAndUpdate(
+      {
+        _id: id,
+        rol: 'admin',
+      },
       {
         $set: {
           nombre: datos.nombre,
@@ -130,7 +138,10 @@ export async function eliminarUsuario(id, usuarioActualId) {
     )
   }
 
-  const usuario = await Usuario.findByIdAndDelete(id)
+  const usuario = await Usuario.findOneAndDelete({
+    _id: id,
+    rol: 'admin',
+  })
 
   if (!usuario) {
     throw crearError('Usuario no encontrado', 404)

@@ -54,6 +54,12 @@ export async function autenticar(req, res, next) {
       })
     }
 
+    if (usuario.rol !== 'admin') {
+      return res.status(403).json({
+        message: 'No tenés permisos para acceder al panel administrativo',
+      })
+    }
+
     req.usuario = usuario
     next()
   } catch (error) {

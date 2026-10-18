@@ -4,6 +4,7 @@ import productoRoutes from './routes/producto.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import pedidoRoutes from './routes/pedido.routes.js'
 import usuarioRoutes from './routes/usuario.routes.js'
+import clienteRoutes from './routes/cliente.routes.js'
 import { manejarErrores } from './middlewares/manejarErrores.js'
 
 const app = express()
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/productos', productoRoutes)
 app.use('/api/pedidos', pedidoRoutes)
 app.use('/api/usuarios', usuarioRoutes)
+app.use('/api/clientes', clienteRoutes)
 
 app.use((req, res) => {
   res.status(404).json({

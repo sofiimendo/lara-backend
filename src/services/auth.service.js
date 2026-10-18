@@ -11,7 +11,7 @@ export async function iniciarSesion({ email, password }) {
 
   const usuario = await Usuario.findOne({ email }).select('+passwordHash')
 
-  if (!usuario || !usuario.activo) {
+  if (!usuario || !usuario.activo || usuario.rol !== 'admin') {
     return null
   }
 

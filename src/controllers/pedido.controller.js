@@ -15,7 +15,12 @@ function validarId(id, res) {
 
 export async function crearPedido(req, res, next) {
   try {
-    const pedido = await pedidoService.crearPedido(req.body)
+    const pedido = await pedidoService.crearPedido(
+      req.body,
+      req.cliente._id
+    )
+
+    res.set('Cache-Control', 'no-store')
 
     return res.status(201).json({
       message: 'Consulta recibida. Lara confirmará disponibilidad y presupuesto',
@@ -24,6 +29,20 @@ export async function crearPedido(req, res, next) {
         estado: pedido.estado,
       },
     })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function listarMisPedidos(req, res, next) {
+  try {
+    const pedidos = await pedidoService.listarPedidosDeCliente(
+      req.cliente._id
+    )
+
+    res.set('Cache-Control', 'no-store')
+
+    return res.status(200).json({ pedidos })
   } catch (error) {
     next(error)
   }
