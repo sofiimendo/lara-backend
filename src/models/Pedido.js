@@ -2,6 +2,11 @@ import mongoose from 'mongoose'
 
 const pedidoSchema = new mongoose.Schema(
   {
+    cliente: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      index: true,
+    },
     nombre: {
       type: String,
       required: [true, 'El nombre es obligatorio'],
