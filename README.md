@@ -2,7 +2,7 @@
 
 API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
 
-Incluye MongoDB Atlas, CRUD de productos, pedidos y usuarios, validación de datos y autenticación de administración. La integración con la landing en React está pendiente.
+Incluye MongoDB Atlas, CRUD de productos, pedidos y usuarios, validación de datos y autenticación de administradores y clientes. La integración con la landing en React está pendiente.
 
 ## Proyectos relacionados
 
@@ -51,7 +51,7 @@ Copiá `.env.example` y nombrá la copia `.env`.
 | FRONTEND_URL | Dirección del frontend. En desarrollo: http://localhost:5173. |
 | JWT_SECRET | Secreto para firmar y verificar tokens. |
 
-Generá el secreto:
+Generá el secreto localmente:
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
@@ -73,14 +73,14 @@ Reiniciá el servidor después de cambiar `.env`.
 pnpm dev
 ```
 
-Respuesta esperada:
+Mensajes esperados:
 
 ```text
 Conectado a MongoDB
 API de Lara disponible en http://localhost:4000
 ```
 
-Dejá esa terminal abierta y usá otra para las pruebas. Esperá a que nodemon termine de reiniciar después de guardar archivos.
+Dejá esa terminal abierta y usá otra para comandos. Esperá a que nodemon termine de reiniciar después de guardar archivos.
 
 ## Comprobar la API
 
@@ -121,7 +121,7 @@ Ejecutá:
 node scripts/crearAdmin.js
 ```
 
-Respuesta esperada:
+Mensajes esperados:
 
 ```text
 Conectado a MongoDB
@@ -134,9 +134,9 @@ Guardá las credenciales en un gestor de contraseñas y eliminá las variables `
 
 Las cuentas adicionales también pueden crearse mediante el módulo de usuarios con una sesión administradora.
 
-Para la cuenta definitiva, usá un correo al que Lara tenga acceso. Actualmente no se envían correos ni existe recuperación de contraseña.
+Para la cuenta definitiva, usá un correo al que Lara tenga acceso y reemplazá las credenciales de prueba antes del uso definitivo. Actualmente no se envían correos ni existe recuperación de contraseña.
 
-## Autenticación
+## Autenticación administrativa
 
 | Método | Ruta | Acceso |
 |---|---|---|
@@ -146,6 +146,8 @@ Enviar JSON con `email` y `password`.
 
 Un login correcto responde 200 con `message`, `token` y `usuario`. Los datos del usuario incluyen id, nombre, email y rol.
 
+El login administrativo solo admite cuentas admin activas.
+
 El token vence en una hora. Las operaciones protegidas requieren:
 
 ```text
@@ -154,13 +156,36 @@ Authorization: Bearer TOKEN
 
 Las credenciales incorrectas responden 401. El login limita a 10 intentos fallidos por IP en 15 minutos; al superar el límite responde 429.
 
-Las rutas protegidas verifican el token y que la cuenta siga activa y tenga rol admin.
+Las rutas administrativas verifican el token y que la cuenta siga activa y tenga rol admin.
+
+## Clientes
+
+| Método | Ruta | Acción | Acceso |
+|---|---|---|---|
+| POST | /api/clientes/registro | Crear una cuenta cliente. | Público, con límite |
+| POST | /api/clientes/login | Iniciar sesión como cliente. | Público, con límite |
+
+El registro exige `nombre`, `email` y `password`, normaliza el email y asigna exclusivamente el rol `cliente` y `activo: true`.
+
+La contraseña exige al menos 12 caracteres y un máximo de 72 bytes UTF-8; se almacena como hash bcrypt. Los emails duplicados responden 409 y los campos desconocidos se rechazan.
+
+El registro responde 201 con `message` y `cliente`, sin contraseña ni hash.
+
+El login correcto responde 200 con `message`, `token` y `cliente`. Las credenciales incorrectas responden 401.
+
+El token de cliente dura una hora y usa la audiencia `lara-cliente`.
+
+El registro admite 5 solicitudes por IP cada 15 minutos y el login de clientes, 10 solicitudes por IP cada 15 minutos, incluidos los intentos exitosos. Al superar el límite responden 429.
+
+Las rutas de cliente verifican token, audiencia, cuenta activa y rol.
 
 ## Usuarios
 
 El módulo de usuarios permite administrar las cuentas autorizadas para acceder al panel de administración de Lara Pastelería.
 
-No existe registro público. Todas las rutas requieren autenticación JWT y permisos de administrador.
+No existe registro público de administradores. Todas las rutas de este módulo requieren autenticación JWT y permisos de administrador.
+
+Solo gestionan cuentas con rol `admin`; las cuentas cliente quedan fuera de este CRUD.
 
 | Método | Ruta | Acción | Acceso |
 |---|---|---|---|
@@ -180,7 +205,7 @@ El backend impide que una cuenta administradora se elimine o desactive a sí mis
 
 Las respuestas no incluyen la contraseña ni su hash.
 
-Las cinco operaciones del CRUD fueron probadas manualmente, junto con las principales validaciones de seguridad.
+Las cinco operaciones del CRUD fueron probadas manualmente por Yami, junto con las principales validaciones de seguridad. Queda verificar y completar su cobertura en Postman.
 
 La documentación completa está en [USUARIOS.md](./USUARIOS.md).
 
@@ -222,8 +247,9 @@ Las consultas públicas actuales incluyen productos no disponibles. El filtrado 
 
 | Método | Ruta | Acción | Acceso |
 |---|---|---|---|
-| POST | /api/pedidos | Crear una consulta. | Público, con límite |
-| GET | /api/pedidos | Listar. | Admin |
+| POST | /api/pedidos | Crear una consulta vinculada a la cuenta. | Cliente, con límite |
+| GET | /api/pedidos/mis-pedidos | Listar los pedidos propios. | Cliente |
+| GET | /api/pedidos | Listar todos los pedidos. | Admin |
 | GET | /api/pedidos/:id | Obtener por ID. | Admin |
 | PUT | /api/pedidos/:id | Actualizar los datos del formulario. | Admin |
 | PATCH | /api/pedidos/:id/estado | Cambiar estado. | Admin |
@@ -233,17 +259,37 @@ Crear una consulta no confirma una reserva. Entra con estado `nuevo`.
 
 POST devuelve únicamente el ID y el estado del pedido, además del mensaje de recepción.
 
-PUT exige los siete campos del formulario y conserva el estado, el ID y la fecha de creación.
+Los siete campos del formulario son:
+
+- nombre
+- whatsapp
+- fecha
+- tipoEvento
+- pedido
+- cantidadPersonas
+- detalles
+
+PUT exige los siete campos y conserva el estado, el ID y la fecha de creación. La conservación del vínculo con el cliente debe comprobarse al repetir esta operación después de integrar clientes.
+
+Los estados admitidos son `nuevo`, `pendiente`, `confirmado`, `entregado` y `cancelado`.
 
 DELETE elimina el registro; usar el estado `cancelado` cuando se quiera conservar el historial.
 
-Las tortas y medialunas requieren al menos cinco días de anticipación. Los demás pedidos admiten fechas desde hoy. La validación utiliza la fecha de Buenos Aires.
+Las tortas y medialunas requieren al menos cinco días de anticipación. Los demás pedidos admiten fechas desde hoy. La validación utiliza la fecha de Buenos Aires y el formato `YYYY-MM-DD`.
 
-La creación pública está limitada a 10 solicitudes por IP en 15 minutos.
+La creación requiere un token de cliente y está limitada a 10 solicitudes por IP en 15 minutos, después de autenticar.
 
-La documentación de campos, validaciones, respuestas e integración está en [PEDIDOS.md](./PEDIDOS.md).
+El backend toma el ID del cliente desde la sesión, no desde el cuerpo enviado.
+
+`mis-pedidos` filtra por la cuenta autenticada. La consulta individual por ID y las operaciones administrativas siguen reservadas a administradores.
+
+Los pedidos antiguos pueden no tener un cliente vinculado.
+
+La documentación adicional está en [PEDIDOS.md](./PEDIDOS.md). Ese documento debe revisarse para actualizar las referencias al antiguo acceso público de creación.
 
 ## Pruebas manuales con scripts
+
+Los scripts existentes se enumeran como referencia. Los que crean pedidos deben revisarse y adaptarse al nuevo requisito de autenticación de cliente antes de reutilizarlos; no se verificaron nuevamente tras ese cambio.
 
 Con el servidor funcionando, ejecutar en otra terminal:
 
@@ -265,13 +311,14 @@ La colección está disponible en:
 
 [Lara Pastelería API — colección de Postman](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-La colección contiene 29 solicitudes:
+La colección contiene 40 solicitudes:
 
-- 13 de autenticación y productos.
-- 11 en la carpeta Pedidos.
-- 5 en la carpeta Usuarios.
+- 13 de autenticación administrativa y productos.
+- 15 en la carpeta Pedidos.
+- 7 de registro/login de clientes y consulta de pedidos propios.
+- 5 en la carpeta Usuarios, conservadas de Yami.
 
-Las solicitudes de productos y pedidos se ejecutaron manualmente en Postman.
+Los CRUD de productos y pedidos se probaron manualmente antes de integrar clientes. Después de esa integración se verificaron los casos detallados más abajo; esto no implica que las 40 solicitudes se hayan ejecutado nuevamente.
 
 Las pruebas manuales del módulo de usuarios están documentadas en [USUARIOS.md](./USUARIOS.md). Queda completar su verificación en Postman y los casos adicionales de autenticación y límites de solicitudes.
 
@@ -280,7 +327,7 @@ La colección no contiene pruebas automatizadas con aserciones. Guardar solicitu
 ### Configuración
 
 1. Iniciar el backend con `pnpm dev`.
-2. En Postman, usar Import y seleccionar el archivo de la colección.
+2. En Postman, usar Import y seleccionar el archivo de la colección completa.
 3. Crear un entorno local llamado `Lara Local`.
 4. Agregar las siguientes variables y seleccionar ese entorno.
 
@@ -288,17 +335,23 @@ La colección no contiene pruebas automatizadas con aserciones. Guardar solicitu
 |---|---|
 | adminEmail | Email de una administradora activa de prueba. |
 | adminPassword | Contraseña de esa administradora. |
-| token | Token recibido al iniciar sesión, sin comillas. |
+| token | Token del login administrativo, sin comillas ni prefijo Bearer. |
 | productoID | `_id` del producto creado para las pruebas. |
 | pedidoID | `id` devuelto al crear el pedido de prueba. |
-| usuarioId | `_id` del usuario creado para las pruebas. |
-| passwordUsuarioPrueba | Contraseña propia para crear un usuario de prueba; mínimo 12 caracteres y máximo 72 bytes en UTF-8. |
+| usuarioId | ID del usuario creado para las pruebas. |
+| passwordUsuarioPrueba | Contraseña local para crear un usuario de prueba; mínimo 12 caracteres y máximo 72 bytes UTF-8. |
+| clienteEmail | Email del primer cliente de prueba. |
+| clientePassword | Contraseña local del primer cliente. |
+| clienteToken | Token del login del primer cliente, sin comillas ni prefijo Bearer. |
+| cliente2Email | Email diferente para el segundo cliente. |
+| cliente2Password | Contraseña local del segundo cliente. |
+| cliente2Token | Token del login del segundo cliente. |
 
 La colección define `baseUrl` como `http://localhost:4000`. Puede modificarse para apuntar a otra instancia de la API.
 
 Los nombres de las variables distinguen mayúsculas y minúsculas: usar `productoID` y `pedidoID`, con ID en mayúsculas, y `usuarioId`, con Id.
 
-Guardar credenciales y token únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales. La colección utiliza referencias a variables y no incluye credenciales reales.
+Guardar credenciales y tokens únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales. La colección utiliza referencias a variables y no incluye credenciales reales.
 
 ### Ejecución manual de productos
 
@@ -317,26 +370,46 @@ Guardar credenciales y token únicamente como valores locales. No compartirlos n
 13. Ejecutar `Eliminar producto`: debe responder 200.
 14. Ejecutar nuevamente `Consultar producto por ID`: debe responder 404.
 
-La solicitud `Consultar producto inexistente` conserva el ID de un producto de prueba eliminado e incluye el ejemplo `404 — Producto inexistente`. En otra base, comprobar primero que ese ID no exista.
+La solicitud `Consultar producto inexistente` conserva el ID de un producto de prueba eliminado. En otra base, comprobar primero que ese ID no exista.
 
-### Ejecución manual de pedidos
+### Ejecución manual de clientes y pedidos
 
-1. Ejecutar `Login admin` y actualizar la variable local `token`.
-2. Abrir la carpeta `Pedidos`. Antes de crear o actualizar pedidos, ajustar las fechas de los cuerpos JSON: las tortas y medialunas requieren al menos cinco días de anticipación según la fecha de Buenos Aires. Las fechas guardadas en los ejemplos no se actualizan automáticamente.
-3. Ejecutar `Crear pedido publico`, sin autenticación: debe responder 201 con `pedido.id` y estado `nuevo`. Copiar ese `id` a `pedidoID`.
-4. Ejecutar `Consultar pedido por ID` y `Listar pedidos`: deben responder 200 con autenticación.
-5. Ejecutar `Cambiar estado del pedido`: debe responder 200 con estado `pendiente`.
-6. Ejecutar `Actualizar pedido`: debe responder 200 y conservar `_id`, `createdAt` y el estado `pendiente`.
-7. Ejecutar `Rechazar estado invalido`: debe responder 400.
-8. Ejecutar `Rechazar PUT de pedido incompleto`: debe responder 400.
-9. En `Rechazar torta sin anticipacion`, establecer la fecha de hoy en Buenos Aires para comprobar específicamente el mínimo de cinco días. Debe responder 400 con el mensaje de anticipación.
-10. Ejecutar `Rechazar listado de pedidos sin token`: debe responder 401.
-11. Ejecutar la solicitud de ID de pedido inválido, cuya URL termina en `/api/pedidos/id-invalido`: debe responder 400 con un token válido.
-12. Consultar nuevamente el pedido y comprobar que los intentos rechazados no cambiaron sus datos.
-13. Ejecutar `Eliminar pedido`: debe responder 200.
-14. Ejecutar nuevamente `Consultar pedido por ID`: debe responder 404.
+1. Completar las variables locales de ambos clientes. Las contraseñas requieren al menos 12 caracteres y como máximo 72 bytes UTF-8.
+2. Ejecutar `Registrar cliente`: esperar 201. Si la cuenta ya existe, usar su login; repetir el registro con el mismo email devuelve 409.
+3. Ejecutar `Login cliente`: esperar 200 y copiar el token a `clienteToken`.
+4. Ajustar las fechas antes de crear o actualizar pedidos. Para tortas y medialunas usar una fecha con al menos cinco días de anticipación según Buenos Aires. Los ejemplos tienen fechas fijas.
+5. Ejecutar `Crear pedido como cliente` con Bearer `{{clienteToken}}`: esperar 201, `pedido.id` y estado `nuevo`. Copiar el ID a `pedidoID`.
+6. Ejecutar `Consultar mis pedidos`: esperar 200 y comprobar el ID y el vínculo con el cliente.
+7. Ejecutar los rechazos de consulta de pedidos propios y creación sin token: esperar 401. La creación rechazada no debe generar otro pedido.
+8. Ejecutar el rechazo del listado administrativo con token de cliente: esperar 401. Esta respuesta rechaza el token de cliente en el acceso administrativo; no representa una prueba de expiración.
+9. Ejecutar `Login admin` y copiar el token a `token`. Consultar el pedido por ID y listar pedidos con Bearer `{{token}}`: esperar 200.
+10. Ejecutar `Cambiar estado del pedido` como admin: esperar 200 y estado `pendiente`. Consultar los pedidos propios como cliente y verificar que vea el cambio.
+11. Ejecutar el rechazo del cambio de estado con token de cliente: esperar 401. Consultar otra vez los pedidos propios y confirmar que conserva `pendiente` y sus datos.
+12. Ejecutar `Registrar segundo cliente` y `Login segundo cliente`; guardar su token en `cliente2Token`.
+13. Consultar los pedidos propios del segundo cliente: esperar 200 y `pedidos: []` si no creó pedidos. No debe incluir el pedido del primer cliente.
+14. Consultar el pedido del primero por ID con el token del segundo: esperar 401, porque la ruta por ID es administrativa.
+15. En `Rechazar torta sin anticipacion`, usar Bearer `{{clienteToken}}` y fecha de hoy en Buenos Aires: esperar 400 con el mensaje de los cinco días de anticipación.
+16. Para repetir el resto del CRUD como admin, ejecutar `Actualizar pedido` con los siete campos: esperar 200 y comprobar que conserva cliente, estado, ID y `createdAt`.
+17. Probar estado inválido y PUT incompleto: esperar 400. Probar listado sin token: esperar 401. Probar ID inválido con token admin válido: esperar 400. Consultar nuevamente para verificar que los rechazos no modificaron datos.
+18. Al terminar las comprobaciones, ejecutar `Eliminar pedido` como admin: esperar 200; consultar nuevamente por ID: esperar 404. Consultar los pedidos propios del cliente y verificar que ya no figure.
 
-El pedido de prueba utilizado durante estas verificaciones fue eliminado. Para repetirlas, crear otro pedido y actualizar `pedidoID`.
+### Resultados verificados tras integrar clientes
+
+- Registro de dos clientes: 201, rol cliente, sin contraseña ni hash en la respuesta.
+- Login de ambos clientes y del administrador: 200.
+- Creación autenticada de pedido: 201, estado nuevo y vínculo con el primer cliente.
+- Consulta de pedidos propios: 200.
+- Consulta de pedidos propios y creación sin token: 401; sin pedido adicional.
+- Listado administrativo y cambio de estado con token cliente: 401.
+- Consulta por ID como administrador y cambio a pendiente: 200.
+- El primer cliente ve el estado pendiente.
+- El intento rechazado de cambiar el estado no altera estado ni fecha de actualización.
+- El segundo cliente recibe una lista vacía y su consulta directa del pedido por ID responde 401.
+- Torta sin anticipación con token cliente: 400 por la fecha.
+
+El pedido usado en esta integración seguía existente y pendiente al documentar los resultados.
+
+No se volvió a ejecutar PUT ni DELETE en esta ronda. Las pruebas anteriores de PUT y DELETE corresponden al comportamiento previo a la integración de clientes. Los pasos anteriores describen cómo repetirlas; no deben interpretarse como resultados nuevos.
 
 ### Ejecución manual de usuarios
 
@@ -344,7 +417,7 @@ La carpeta `Usuarios` conserva las cinco solicitudes aportadas por Yami.
 
 1. Iniciar sesión con una administradora activa y actualizar `token`.
 2. Completar `passwordUsuarioPrueba` únicamente como valor local.
-3. Ejecutar `Crear usuario`: debe responder 201. Copiar el `_id` recibido a `usuarioId`.
+3. Ejecutar `Crear usuario`: debe responder 201. Copiar el ID recibido a `usuarioId`.
 4. Ejecutar `Listar usuarios` y `Consultar usuario por ID`: deben responder 200.
 5. Ejecutar `Actualizar usuario`: debe responder 200 y conservar la contraseña y el rol.
 6. Ejecutar `Eliminar usuario`: debe responder 200.
@@ -358,9 +431,11 @@ Seguir también las validaciones y los resultados esperados de [USUARIOS.md](./U
 
 El orden de la lista lateral no representa el orden de ejecución: seguir los pasos de esta documentación.
 
-El token vence en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar la variable local `token`.
+Los tokens vencen en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar la variable local correspondiente: `token`, `clienteToken` o `cliente2Token`, según la sesión.
 
-Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar registros de prueba y eliminarlos al terminar.
+Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar registros de prueba.
+
+La colección completa debe mantenerse sincronizada en Postman para conservar también la carpeta Usuarios al volver a exportarla.
 
 ## Organización
 
@@ -411,7 +486,10 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 ## Pendientes para la entrega
 
 - Completar la verificación de usuarios en Postman y los casos adicionales de autenticación y rate limiting.
-- Actualizar la colección y la documentación con los casos que se incorporen.
+- Repetir PUT y DELETE de pedidos tras integrar clientes, verificando que PUT conserve el vínculo con el cliente.
+- Revisar los scripts de pedidos y PEDIDOS.md para adaptarlos al acceso de clientes.
+- Mantener sincronizada la colección completa en Postman, incluida la carpeta Usuarios.
+- Actualizar la documentación con los casos que se incorporen.
 - Integrar la landing y el panel de administración, a cargo de Yami.
 - Desplegar la API en Render y revisar variables de entorno, acceso a Atlas, CORS y configuración de proxy para rate limiting.
 - Probar la integración desde la web publicada.

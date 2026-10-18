@@ -10,7 +10,44 @@
       "name": "Pedidos",
       "item": [
         {
-          "name": "Crear pedido publico",
+          "name": "Crear pedido como cliente",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"whatsapp\": \"1123456789\",\n  \"fecha\": \"2026-10-25\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar creacion de pedido sin token",
           "request": {
             "auth": {
               "type": "noauth"
@@ -19,7 +56,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Cliente prueba Postman\",\n  \"whatsapp\": \"1155551234\",\n  \"fecha\": \"2026-10-30\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": \"10\",\n  \"detalles\": \"Consulta de prueba para verificar pedidos\"\n}",
+              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"whatsapp\": \"1123456789\",\n  \"fecha\": \"2026-10-25\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -69,6 +106,35 @@
           "response": []
         },
         {
+          "name": "Rechazar consulta por ID con segundo cliente",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cliente2Token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Listar pedidos",
           "request": {
             "auth": {
@@ -77,6 +143,34 @@
                 {
                   "key": "token",
                   "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar listado administrativo con token de cliente.",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
                   "type": "string"
                 }
               ]
@@ -114,6 +208,45 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"estado\": \"pendiente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoID}}/estado",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoID}}",
+                "estado"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar cambio de estado con token de cliente",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"confirmado\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -254,7 +387,14 @@
           "name": "Rechazar torta sin anticipacion",
           "request": {
             "auth": {
-              "type": "noauth"
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
             },
             "method": "POST",
             "header": [],
@@ -294,6 +434,9 @@
                 "api",
                 "pedidos"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
           "response": []
@@ -828,6 +971,210 @@
       "response": []
     },
     {
+      "name": "Registrar cliente",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"email\": \"{{clienteEmail}}\",\n  \"password\": \"{{clientePassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes/registro",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes",
+            "registro"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Registrar segundo cliente",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Cliente prueba 2 Sofi\",\n  \"email\": \"{{cliente2Email}}\",\n  \"password\": \"{{cliente2Password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes/registro",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes",
+            "registro"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login cliente",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{clienteEmail}}\",\n  \"password\": \"{{clientePassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login segundo cliente",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{cliente2Email}}\",\n  \"password\": \"{{cliente2Password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/clientes/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "clientes",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar mis pedidos",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{clienteToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pedidos/mis-pedidos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pedidos",
+            "mis-pedidos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Consultar mis pedidos segundo cliente",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cliente2Token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pedidos/mis-pedidos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pedidos",
+            "mis-pedidos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Rechazar mis pedidos sin token",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pedidos/mis-pedidos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pedidos",
+            "mis-pedidos"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
       "name": "Usuarios",
       "description": "CRUD de usuarios administradores. Requiere JWT con rol admin. Usar únicamente cuentas temporales para las pruebas.",
       "item": [
@@ -1032,26 +1379,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:4000"
-    },
-    {
-      "key": "usuarioId",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "passwordUsuarioPrueba",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "pedidoID",
-      "value": "",
+      "value": "http://localhost:4000",
       "type": "string"
     }
   ]
