@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import Usuario from '../models/Usuario.js'
 
 function crearError(mensaje, estado) {
@@ -44,5 +45,47 @@ export async function registrarCliente(datos) {
     }
 
     throw error
+  }
+}
+
+export async function iniciarSesionCliente({ email, password }) {
+  const secret = process.env.JWT_SECRET
+
+  if (!secret || secret.length < 32) {
+    throw new Error('JWT_SECRET debe tener al menos 32 caracteres')
+  }
+
+  const cliente = await Usuario.findOne({
+    email: email.trim().toLowerCase(),
+  }).select('+passwordHash')
+
+  if (!cliente || !cliente.activo || cliente.rol !== 'cliente') {
+    return null
+  }
+
+  const passwordValida = await bcrypt.compare(
+    password,
+    cliente.passwordHash
+  )
+
+  if (!passwordValida) {
+    return null
+  }
+
+  const token = jwt.sign(
+    {},
+    secret,
+    {
+      algorithm: 'HS256',
+      subject: cliente._id.toString(),
+      issuer: 'lara-backend',
+      audience: 'lara-cliente',
+      expiresIn: '1h',
+    }
+  )
+
+  return {
+    token,
+    cliente: clienteSeguro(cliente),
   }
 }
