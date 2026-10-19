@@ -10,6 +10,20 @@ import {
 
 const router = Router()
 
+router.get(
+  '/admin',
+  autenticar,
+  soloAdmin,
+  productoController.listarProductosAdmin
+)
+
+router.get(
+  '/admin/:id',
+  autenticar,
+  soloAdmin,
+  productoController.obtenerProductoAdmin
+)
+
 router.get('/', productoController.listarProductos)
 
 router.get('/:id', productoController.obtenerProducto)

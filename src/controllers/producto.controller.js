@@ -23,6 +23,18 @@ export async function listarProductos(req, res, next) {
   }
 }
 
+export async function listarProductosAdmin(req, res, next) {
+  res.set('Cache-Control', 'no-store')
+
+  try {
+    const productos = await productoService.listarProductosAdmin()
+
+    return res.status(200).json({ productos })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export async function obtenerProducto(req, res, next) {
   try {
     const { id } = req.params
@@ -30,6 +42,28 @@ export async function obtenerProducto(req, res, next) {
     if (!validarId(id, res)) return
 
     const producto = await productoService.obtenerProductoPorId(id)
+
+    if (!producto) {
+      return res.status(404).json({
+        message: 'Producto no encontrado',
+      })
+    }
+
+    return res.status(200).json({ producto })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function obtenerProductoAdmin(req, res, next) {
+  res.set('Cache-Control', 'no-store')
+
+  try {
+    const { id } = req.params
+
+    if (!validarId(id, res)) return
+
+    const producto = await productoService.obtenerProductoPorIdAdmin(id)
 
     if (!producto) {
       return res.status(404).json({
