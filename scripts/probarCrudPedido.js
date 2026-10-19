@@ -1,16 +1,42 @@
 import assert from 'node:assert/strict'
 import { createInterface } from 'node:readline/promises'
+import { Writable } from 'node:stream'
 import { stdin, stdout } from 'node:process'
+
+let ocultarSalida = false
+
+const salida = new Writable({
+  write(contenido, codificacion, callback) {
+    if (!ocultarSalida) {
+      stdout.write(contenido, codificacion)
+    }
+
+    callback()
+  },
+})
 
 const terminal = createInterface({
   input: stdin,
-  output: stdout,
+  output: salida,
+  terminal: true,
 })
 
 const baseURL = 'http://localhost:4000/api'
 let headersAdmin
 let pedidoId
 let eliminado = false
+
+async function preguntarPassword(mensaje) {
+  stdout.write(mensaje)
+  ocultarSalida = true
+
+  try {
+    return await terminal.question('')
+  } finally {
+    ocultarSalida = false
+    stdout.write('\n')
+  }
+}
 
 async function solicitar(ruta, opciones = {}, estadoEsperado = 200) {
   const respuesta = await fetch(`${baseURL}${ruta}`, opciones)
@@ -48,10 +74,10 @@ function comprobarDatos(pedido, esperados) {
 
 try {
   console.log('Usá una cuenta administradora y una cuenta cliente de prueba.')
-  console.log('Las contraseñas se ven mientras las escribís.')
+  console.log('Las contraseñas no se muestran mientras las escribís.')
 
   const adminEmail = await terminal.question('Email de administrador: ')
-  const adminPassword = await terminal.question('Contraseña de administrador: ')
+  const adminPassword = await preguntarPassword('Contraseña de administrador: ')
 
   const sesionAdmin = await solicitar('/auth/login', {
     method: 'POST',
@@ -65,7 +91,7 @@ try {
   headersAdmin = crearHeaders(sesionAdmin.token)
 
   const clienteEmail = await terminal.question('Email del cliente: ')
-  const clientePassword = await terminal.question('Contraseña del cliente: ')
+  const clientePassword = await preguntarPassword('Contraseña del cliente: ')
 
   const sesionCliente = await solicitar('/clientes/login', {
     method: 'POST',
@@ -87,12 +113,17 @@ try {
 
   const datosIniciales = {
     nombre: 'Cliente de prueba CRUD',
-    whatsapp: '11 1234 5678',
+    email: '  PRUEBA.CRUD@EXAMPLE.COM  ',
     fecha: fecha.toISOString().slice(0, 10),
     tipoEvento: 'Cumpleaños',
     pedido: 'Torta',
     cantidadPersonas: 10,
-    detalles: 'Pedido creado para probar PUT y DELETE con clientes',
+    detalles: 'Pedido creado para probar email, PUT y DELETE con clientes',
+  }
+
+  const esperadosIniciales = {
+    ...datosIniciales,
+    email: 'prueba.crud@example.com',
   }
 
   const creado = await solicitar(
@@ -105,7 +136,7 @@ try {
     201
   )
 
-  pedidoId = creado.pedido?.id
+  pedidoId = creado.pedido?.id || creado.pedido?._id
 
   assert.equal(typeof pedidoId, 'string', 'La creación no devolvió el ID')
   assert.ok(pedidoId.length > 0, 'El ID del pedido está vacío')
@@ -120,8 +151,11 @@ try {
   const propioInicial = buscarPedido(propiosIniciales, pedidoId)
 
   assert.ok(propioInicial, 'El pedido no aparece en mis-pedidos')
+  comprobarDatos(propioInicial, esperadosIniciales)
   assert.equal(propioInicial.cliente, clienteId)
+  assert.equal(propioInicial.estado, 'nuevo')
 
+  console.log('POST: email guardado sin espacios y en minúsculas')
   console.log('Pedido vinculado al cliente y visible en mis-pedidos: correcto')
 
   await solicitar(`/pedidos/${pedidoId}/estado`, {
@@ -134,9 +168,13 @@ try {
     headers: headersAdmin,
   })
 
+  comprobarDatos(inicial.pedido, esperadosIniciales)
+  assert.equal(inicial.pedido._id, pedidoId)
   assert.equal(inicial.pedido.cliente, clienteId)
   assert.equal(inicial.pedido.estado, 'pendiente')
   assert.ok(inicial.pedido.createdAt, 'Falta la fecha de creación')
+
+  console.log('Consulta y cambio de estado como administrador: correctos')
 
   await solicitar(
     `/pedidos/${pedidoId}`,
@@ -163,9 +201,15 @@ try {
   const datosCompletos = {
     ...datosIniciales,
     nombre: 'Cliente actualizado',
+    email: '  ACTUALIZADO.CRUD@EXAMPLE.COM  ',
     tipoEvento: 'Reunión',
     cantidadPersonas: 20,
-    detalles: 'Datos actualizados por PUT',
+    detalles: 'Datos actualizados por PUT con email',
+  }
+
+  const esperadosActualizados = {
+    ...datosCompletos,
+    email: 'actualizado.crud@example.com',
   }
 
   await solicitar(`/pedidos/${pedidoId}`, {
@@ -180,13 +224,14 @@ try {
 
   const guardado = consulta.pedido
 
-  comprobarDatos(guardado, datosCompletos)
+  comprobarDatos(guardado, esperadosActualizados)
   assert.equal(guardado._id, pedidoId)
   assert.equal(guardado.cliente, clienteId)
   assert.equal(guardado.createdAt, inicial.pedido.createdAt)
   assert.equal(guardado.estado, 'pendiente')
 
   console.log('PUT completo: datos guardados correctamente')
+  console.log('PUT: email guardado sin espacios y en minúsculas')
   console.log('Cliente, ID, estado y fecha de creación conservados')
 
   const propiosActualizados = await solicitar('/pedidos/mis-pedidos', {
@@ -196,7 +241,8 @@ try {
   const propioActualizado = buscarPedido(propiosActualizados, pedidoId)
 
   assert.ok(propioActualizado, 'El pedido actualizado no aparece en mis-pedidos')
-  comprobarDatos(propioActualizado, datosCompletos)
+  comprobarDatos(propioActualizado, esperadosActualizados)
+  assert.equal(propioActualizado._id, pedidoId)
   assert.equal(propioActualizado.cliente, clienteId)
   assert.equal(propioActualizado.estado, 'pendiente')
   assert.equal(propioActualizado.createdAt, inicial.pedido.createdAt)
@@ -230,7 +276,7 @@ try {
 
   console.log('Consulta por ID después de eliminar: 404')
   console.log('El pedido eliminado ya no aparece en mis-pedidos')
-  console.log('Prueba correcta: true')
+  console.log('Prueba CRUD con email correcta: true')
 } catch (error) {
   console.error('Error:', error.message)
   process.exitCode = 1

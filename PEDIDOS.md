@@ -1,35 +1,97 @@
 # API de pedidos
 
-La API recibe consultas por encargo. Recibir una consulta no confirma una reserva: Lara coordina disponibilidad y presupuesto.
+La API recibe consultas por encargo. Recibir una consulta no confirma una reserva: Lara debe confirmar disponibilidad y presupuesto.
 
-Los clientes pueden crear consultas y consultar sus propios pedidos. La administración de pedidos requiere una cuenta administradora activa.
+Los clientes pueden crear pedidos y consultar los propios. La administración requiere una cuenta administradora activa.
 
-## Autenticación de clientes
-
-Para crear pedidos y consultar los propios, el cliente debe registrarse e iniciar sesión:
+## Autenticación
 
 | Método | Ruta | Acción |
 |---|---|---|
-| POST | /api/clientes/registro | Registrar una cuenta cliente. |
+| POST | /api/clientes/registro | Registrar cliente. |
 | POST | /api/clientes/login | Iniciar sesión como cliente. |
+| POST | /api/auth/login | Iniciar sesión como administrador. |
 
-Registro y login reciben `email` y `password`. El registro también exige `nombre`.
+El registro de clientes requiere nombre, email y password. Los logins requieren email y password.
 
-El login devuelve un token de cliente con una duración de una hora y audiencia `lara-cliente`.
+Los tokens duran una hora y utilizan audiencias separadas:
 
-Enviar ese token en las rutas de cliente:
+| Sesión | Audiencia |
+|---|---|
+| Cliente | lara-cliente |
+| Administrador | lara-admin |
+
+Enviar el token correspondiente:
 
 ```text
-Authorization: Bearer TOKEN_CLIENTE
+Authorization: Bearer TOKEN
 ```
 
-El backend verifica el token, su audiencia y que la cuenta siga activa y tenga rol cliente.
+El backend verifica token, audiencia, cuenta activa y rol.
 
-## Crear una consulta
+Un token cliente en una ruta administrativa responde 401 por la separación de audiencias. Ese resultado no demuestra que el token haya vencido.
 
-`POST /api/pedidos`
+## Rutas
 
-Requiere una sesión válida de cliente y los encabezados:
+| Método | Ruta | Acción | Acceso |
+|---|---|---|---|
+| POST | /api/pedidos | Crear pedido. | Cliente |
+| GET | /api/pedidos/mis-pedidos | Listar pedidos propios. | Cliente |
+| GET | /api/pedidos | Listar todos los pedidos. | Admin |
+| GET | /api/pedidos/:id | Consultar por ID. | Admin |
+| PUT | /api/pedidos/:id | Reemplazar datos del formulario. | Admin |
+| PATCH | /api/pedidos/:id/estado | Cambiar estado. | Admin |
+| DELETE | /api/pedidos/:id | Eliminar pedido. | Admin |
+
+## Campos
+
+| Campo | Validación | POST | PUT |
+|---|---|---|---|
+| nombre | Texto entre 2 y 80 caracteres después de quitar espacios exteriores. | Obligatorio | Obligatorio |
+| email | Correo válido de hasta 254 caracteres. | Obligatorio | Obligatorio |
+| fecha | Fecha real en formato YYYY-MM-DD y con anticipación suficiente. | Obligatorio | Obligatorio |
+| pedido | Una de las opciones admitidas. | Obligatorio | Obligatorio |
+| tipoEvento | Vacío, Cumpleaños, Reunión u Otro. | Opcional | Obligatorio |
+| cantidadPersonas | Entero positivo; admite número o texto numérico. | Opcional | Obligatorio |
+| detalles | Texto de hasta 1000 caracteres después de quitar espacios exteriores. | Opcional | Obligatorio |
+
+El email reemplaza al campo WhatsApp.
+
+Antes de validar el correo, se eliminan los espacios exteriores y se convierte a minúsculas. Los espacios internos no se admiten.
+
+El email es un dato de contacto. No determina la cuenta propietaria del pedido y guardarlo no envía un correo automáticamente.
+
+La cantidad de personas se guarda como número. Si se omite al crear, el valor por defecto es 1.
+
+Se rechazan campos desconocidos.
+
+### Opciones de pedido
+
+- Torta
+- Medialunas
+- Desayuno
+- Panes
+- Mesa dulce
+- Comida saludable
+- Otro pedido
+
+### Fecha y anticipación
+
+Las tortas y medialunas requieren al menos cinco días de anticipación.
+
+Las demás opciones admiten fechas desde hoy.
+
+El backend calcula hoy según Buenos Aires. La fecha se almacena como texto para conservar el día elegido.
+
+Las mismas reglas se aplican en POST y PUT. Un PUT puede rechazarse si la fecha del pedido ya no cumple la anticipación vigente.
+
+## Crear pedido
+
+```text
+POST /api/pedidos
+```
+
+Requiere sesión de cliente y estos encabezados:
 
 ```text
 Content-Type: application/json
@@ -41,46 +103,18 @@ Ejemplo:
 ```json
 {
   "nombre": "Cliente de ejemplo",
-  "whatsapp": "11 1234 5678",
+  "email": "cliente@example.com",
   "fecha": "2026-12-20",
   "tipoEvento": "Cumpleaños",
   "pedido": "Torta",
-  "cantidadPersonas": "10",
+  "cantidadPersonas": 10,
   "detalles": "Consultar sabores y presupuesto"
 }
 ```
 
-La fecha del ejemplo debe reemplazarse por una que cumpla las reglas al momento de probar.
+Reemplazar la fecha del ejemplo por una válida al momento de usarlo.
 
-| Campo | Regla |
-|---|---|
-| nombre | Obligatorio, entre 2 y 80 caracteres. |
-| whatsapp | Obligatorio, entre 8 y 15 dígitos. Admite espacios, guiones, paréntesis y un + inicial. Máximo 25 caracteres. |
-| fecha | Obligatoria, fecha real en formato YYYY-MM-DD. |
-| pedido | Obligatorio, una de las opciones admitidas. |
-| tipoEvento | Opcional: vacío, Cumpleaños, Reunión u Otro. |
-| cantidadPersonas | Opcional, entero positivo. Admite número o texto numérico y se guarda como número. Por defecto: 1. |
-| detalles | Opcional, máximo 1000 caracteres. |
-
-Opciones de pedido:
-
-- Torta
-- Medialunas
-- Desayuno
-- Panes
-- Mesa dulce
-- Comida saludable
-- Otro pedido
-
-Tortas y medialunas requieren al menos 5 días de anticipación. Las demás opciones admiten desde hoy. El backend calcula hoy usando la zona horaria de Buenos Aires.
-
-La fecha se guarda como texto para conservar el día elegido.
-
-No enviar `estado`: el backend asigna `nuevo`.
-
-No enviar `cliente`: el backend toma el ID desde la sesión autenticada y vincula el pedido con esa cuenta.
-
-Se rechazan campos desconocidos.
+No enviar cliente ni estado. El backend obtiene el cliente de la sesión y asigna el estado nuevo.
 
 Respuesta exitosa: HTTP 201.
 
@@ -94,7 +128,13 @@ Respuesta exitosa: HTTP 201.
 }
 ```
 
-Datos inválidos: HTTP 400.
+La creación devuelve únicamente el ID y el estado del pedido, además del mensaje.
+
+### Errores de validación
+
+Los datos inválidos responden HTTP 400.
+
+Ejemplo de falta de anticipación:
 
 ```json
 {
@@ -110,11 +150,19 @@ Datos inválidos: HTTP 400.
 
 Sin un token válido de cliente, responde 401.
 
-El envío permite 10 solicitudes por IP en una ventana de 15 minutos. El límite se aplica después de autenticar al cliente; los intentos que llegan a la validación de datos también cuentan. Al superar el límite responde 429.
+### Límite de creación
+
+La ruta está configurada para admitir 10 solicitudes por IP en una ventana de 15 minutos, después de autenticar al cliente.
+
+Los intentos que llegan a la validación de datos también cuentan.
+
+Al superar el límite, la respuesta configurada es 429. La observación de ese límite y la recuperación posterior siguen pendientes de verificación.
 
 ## Consultar pedidos propios
 
-`GET /api/pedidos/mis-pedidos`
+```text
+GET /api/pedidos/mis-pedidos
+```
 
 Requiere:
 
@@ -122,11 +170,11 @@ Requiere:
 Authorization: Bearer TOKEN_CLIENTE
 ```
 
-El backend filtra los pedidos usando la cuenta autenticada. No se envía un ID de cliente en el cuerpo ni en la URL.
+El backend filtra por la cuenta autenticada. No se envía un ID de cliente en el cuerpo ni en la URL.
 
-Respuesta exitosa: HTTP 200 con un objeto que contiene `pedidos`.
+Respuesta exitosa: HTTP 200 con un objeto que contiene pedidos.
 
-Si la cuenta no tiene pedidos:
+Si no hay pedidos:
 
 ```json
 {
@@ -134,50 +182,45 @@ Si la cuenta no tiene pedidos:
 }
 ```
 
-Si tiene pedidos, la lista incluye sus datos, estado y vínculo con el cliente. Las modificaciones administrativas se reflejan en esta consulta.
+Cuando existen pedidos, la lista incluye sus datos, estado y vínculo con el cliente.
 
-Sin un token válido de cliente, responde 401.
+Las modificaciones administrativas se reflejan en esta consulta.
 
-Un cliente no puede usar la ruta administrativa `/api/pedidos/:id` para consultar un pedido, aunque sea propio. Debe usar `mis-pedidos`.
+Un cliente no puede utilizar la ruta administrativa por ID, aunque el pedido sea propio. Debe consultar mis-pedidos.
 
-Los pedidos antiguos pueden no tener un cliente vinculado.
+La separación depende del cliente autenticado, incluso cuando dos pedidos tienen el mismo email de contacto.
 
 ## Administración
 
-Estas rutas requieren una cuenta administradora activa y el encabezado:
+Todas las rutas administrativas requieren:
 
 ```text
 Authorization: Bearer TOKEN_ADMIN
 ```
 
-El token administrativo se obtiene mediante `POST /api/auth/login`.
-
-| Método | Ruta | Acción |
-|---|---|---|
-| GET | /api/pedidos | Listar pedidos. |
-| GET | /api/pedidos/:id | Obtener un pedido. |
-| PUT | /api/pedidos/:id | Actualizar todos los datos del formulario. |
-| PATCH | /api/pedidos/:id/estado | Cambiar el estado. |
-| DELETE | /api/pedidos/:id | Eliminar el pedido de la base. |
+El token se obtiene con POST /api/auth/login.
 
 Las operaciones exitosas responden 200.
 
-El listado devuelve un objeto con `pedidos` y ordena primero los más recientes. La consulta por ID devuelve un objeto con `pedido`.
+El listado devuelve un objeto con pedidos. La consulta individual devuelve un objeto con pedido.
 
-Sin sesión administrativa válida responde 401. En las pruebas, el token de cliente fue rechazado con 401 al consultar rutas administrativas o intentar cambiar un estado.
+Después de superar la autenticación:
 
-Un ID mal formado responde 400 y un pedido inexistente, 404, después de superar la autenticación administrativa.
+- Un ID mal formado responde 400.
+- Un pedido inexistente responde 404.
 
-### Actualizar datos con PUT
+### Actualizar con PUT
 
-`PUT /api/pedidos/:id`
+```text
+PUT /api/pedidos/:id
+```
 
-Enviar `Content-Type: application/json`, el token administrativo y los siete campos del formulario:
+Enviar los siete campos:
 
 ```json
 {
   "nombre": "Cliente actualizado",
-  "whatsapp": "11 1234 5678",
+  "email": "actualizado@example.com",
   "fecha": "2026-12-20",
   "tipoEvento": "",
   "pedido": "Torta",
@@ -186,28 +229,30 @@ Enviar `Content-Type: application/json`, el token administrativo y los siete cam
 }
 ```
 
-Todos los campos son obligatorios para PUT. `tipoEvento` y `detalles` pueden ser textos vacíos.
+Revisar la fecha antes de usar el ejemplo.
 
-Se aplican las mismas reglas de teléfono, fecha y anticipación que al crear. Por eso, PUT no permite editar un pedido con una fecha pasada o sin la anticipación mínima vigente.
+Todos los campos son obligatorios. tipoEvento y detalles pueden ser textos vacíos.
 
 PUT conserva:
 
-- El vínculo con el cliente.
-- El ID.
-- La fecha de creación.
-- El estado actual.
+- Cliente vinculado.
+- ID.
+- Estado actual.
+- createdAt.
 
-No admite `estado` ni `cliente` en el cuerpo.
+No admite cliente ni estado en el cuerpo.
 
-La respuesta incluye el mensaje `Datos del pedido actualizados correctamente` y el objeto `pedido` actualizado.
+Respuesta exitosa: HTTP 200 con el mensaje Datos del pedido actualizados correctamente y el objeto pedido actualizado.
 
-Después de la actualización, el cliente puede ver los cambios desde `mis-pedidos`.
+El cliente puede ver los cambios desde mis-pedidos.
 
-### Cambiar el estado
+### Cambiar estado
 
-`PATCH /api/pedidos/:id/estado`
+```text
+PATCH /api/pedidos/:id/estado
+```
 
-Enviar `Content-Type: application/json`, el token administrativo y:
+Enviar:
 
 ```json
 {
@@ -225,17 +270,19 @@ Estados admitidos:
 
 Actualmente se permite cambiar entre cualquiera de estos estados.
 
-La respuesta incluye el mensaje `Estado del pedido actualizado correctamente` y el objeto `pedido`.
+Respuesta exitosa: HTTP 200 con el mensaje Estado del pedido actualizado correctamente y el pedido.
 
-El cliente puede consultar el nuevo estado desde `mis-pedidos`.
-
-Un estado no admitido responde 400. Se verificó que enviar `inventado` conserva el estado anterior del pedido.
+Un estado no admitido responde 400.
 
 ### Eliminar
 
-`DELETE /api/pedidos/:id`
+```text
+DELETE /api/pedidos/:id
+```
 
-DELETE elimina el pedido de la base. Para conservar el historial de una consulta que no se concreta, usar el estado `cancelado`.
+Elimina el documento de la base.
+
+Para conservar el historial de una consulta que no se concreta, utilizar el estado cancelado.
 
 Respuesta exitosa: HTTP 200.
 
@@ -245,7 +292,7 @@ Respuesta exitosa: HTTP 200.
 }
 ```
 
-Una consulta administrativa posterior por ese ID responde 404:
+La consulta administrativa posterior por el mismo ID responde 404:
 
 ```json
 {
@@ -253,167 +300,262 @@ Una consulta administrativa posterior por ese ID responde 404:
 }
 ```
 
-El pedido eliminado también deja de aparecer en `mis-pedidos`.
+El pedido eliminado deja de aparecer en mis-pedidos.
 
-## Integración pendiente con React
+## Documentos anteriores
 
-El formulario actual de lara-pasteleria prepara un mensaje para WhatsApp y todavía no llama a esta API.
+Los pedidos anteriores al cambio pueden carecer de email o de cliente vinculado.
 
-Conservar los nombres de los campos de `usePedidoStore.js`. Al conectar:
-
-- Incorporar el registro y login de clientes.
-- Exigir una sesión de cliente antes de enviar la consulta.
-- Enviar el token de cliente en el encabezado Authorization.
-- Enviar la consulta después de que el cliente revise el resumen.
-- Mostrar un estado de envío y evitar clics repetidos.
-- Mostrar los errores de validación junto a sus campos.
-- Mostrar la recepción solo después del HTTP 201.
-- Aclarar que la recepción no confirma una reserva.
-- Ajustar los textos que indican que la consulta se envía por WhatsApp.
-- Permitir consultar los pedidos propios mediante `mis-pedidos`.
-- Manejar el vencimiento de la sesión solicitando un nuevo login.
-
-Las operaciones del panel administrativo deben usar una sesión administrativa.
-
-No enviar el ID del cliente desde el formulario: el backend lo obtiene de la sesión.
-
-## Pruebas manuales con Postman
-
-Con `pnpm dev` funcionando, usar la colección:
-
-[Postman — Lara Pastelería API](./postman/Lara-Pasteleria-API.postman_collection.json)
-
-Las instrucciones completas de configuración y ejecución están en [README.md](./README.md).
-
-Variables principales:
-
-| Variable | Uso |
-|---|---|
-| baseUrl | Dirección de la API. Localmente: http://localhost:4000. |
-| token | Token administrativo. |
-| clienteToken | Token del primer cliente. |
-| cliente2Token | Token del segundo cliente. |
-| pedidoID | ID del pedido de prueba actual. |
-
-Guardar credenciales y tokens únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales.
-
-### Flujo de comprobación
-
-1. Iniciar sesión como cliente y guardar `clienteToken`.
-2. Crear un pedido con una fecha válida: esperar 201.
-3. Guardar el ID recibido en `pedidoID`.
-4. Consultar `mis-pedidos` y verificar que incluya el pedido.
-5. Iniciar sesión como administrador y guardar `token`.
-6. Consultar el pedido por ID y cambiar su estado a `pendiente`.
-7. Consultar `mis-pedidos` como cliente y comprobar el estado.
-8. Ejecutar PUT como administrador con los siete campos.
-9. Verificar que conserve cliente, ID, estado y `createdAt`.
-10. Consultar `mis-pedidos` y comprobar que el cliente vea los datos actualizados.
-11. Eliminar el pedido como administrador.
-12. Consultar el mismo ID como administrador: esperar 404.
-13. Consultar `mis-pedidos` y comprobar que el pedido eliminado ya no figure.
-
-Ajustar las fechas de los ejemplos antes de ejecutar. Si un token vence, repetir el login correspondiente y actualizar su variable.
-
-Para repetir el flujo después del DELETE, crear un pedido nuevo y actualizar `pedidoID`.
-
-### Resultados verificados tras integrar clientes
-
-- Registro y login de dos clientes.
-- Creación autenticada de pedido: 201, estado `nuevo` y vínculo con el primer cliente.
-- Consulta de pedidos propios: 200.
-- Creación y consulta de pedidos propios sin token: 401.
-- La creación rechazada sin token no generó un pedido adicional.
-- Listado administrativo y cambio de estado con token cliente: 401.
-- Consulta por ID y cambio a `pendiente` como administrador: 200.
-- El cliente vio el estado actualizado.
-- El intento rechazado de cambiar el estado no alteró el estado ni la fecha de actualización.
-- El segundo cliente recibió una lista vacía y no pudo consultar el pedido por la ruta administrativa.
-- Torta sin anticipación con token cliente: 400.
-- PUT administrativo: 200, conservando cliente, ID, estado `pendiente` y `createdAt`.
-- El cliente vio los datos actualizados mediante `mis-pedidos`.
-- DELETE devolvió el mensaje `Pedido eliminado correctamente`.
-- La consulta posterior por ID respondió 404 con `Pedido no encontrado`.
-- La consulta posterior de pedidos propios respondió 200 con `pedidos: []`.
-
-El pedido utilizado en estas pruebas ya fue eliminado.
-
-Las pruebas adicionales con scripts se detallan a continuación. No implican que se haya vuelto a ejecutar toda la colección de Postman.
+Modificar el esquema no migra los documentos existentes. No se realizó ni verificó una migración en esta ronda.
 
 ## Pruebas con scripts
 
-Ambos scripts se ejecutaron correctamente después de integrar clientes.
+Ejecutar desde lara-backend, en otra terminal y con la API funcionando.
 
-Con `pnpm dev` funcionando, ejecutar los scripts desde otra terminal, dentro de `lara-backend`.
+Usar cuentas y registros de prueba.
 
-Usar cuentas y pedidos de prueba. Las operaciones se realizan sobre la base configurada en el servidor.
-
-Los scripts no imprimen el token. Las contraseñas se ven mientras se escriben: no compartir credenciales en capturas ni mensajes.
-
-### Probar PUT y DELETE con clientes
+### CRUD con email
 
 ```bash
 node scripts/probarCrudPedido.js
 ```
 
-Solicita primero las credenciales de una cuenta administradora y después las de una cuenta cliente existente.
+Solicita credenciales de un administrador y un cliente existente. Las contraseñas quedan ocultas al escribirlas y no se imprimen tokens.
 
-Crea un pedido con la sesión de cliente y utiliza la sesión administrativa para actualizarlo y eliminarlo.
+Crea su propio pedido y verifica mediante aserciones:
 
-Comprueba mediante aserciones:
+- POST como cliente: 201 y estado nuevo.
+- Email con espacios exteriores y mayúsculas guardado normalizado.
+- Vínculo con el cliente autenticado.
+- Presencia en mis-pedidos.
+- Cambio administrativo a pendiente.
+- PUT incompleto: 400 sin modificar el documento.
+- PUT completo con un email distinto del inicial.
+- Normalización del nuevo email.
+- Conservación de cliente, ID, estado y createdAt.
+- Visibilidad de los datos actualizados para el cliente.
+- DELETE administrativo.
+- Consulta posterior por ID: 404.
+- Ausencia del pedido eliminado en mis-pedidos.
 
-- Creación como cliente: HTTP 201 y estado `nuevo`.
-- El pedido aparece en `mis-pedidos` vinculado a la cuenta autenticada.
-- El administrador puede cambiar el estado a `pendiente`.
-- PUT incompleto responde 400 y no modifica el pedido.
-- PUT completo guarda los siete campos.
-- Se conservan cliente, ID, estado y `createdAt`.
-- El cliente ve los datos actualizados en `mis-pedidos`.
-- DELETE administrativo responde 200.
-- La consulta posterior por ID responde 404.
-- El pedido eliminado deja de aparecer en `mis-pedidos`.
-
-Resultado verificado:
+Resultado verificado el 19/10/2026:
 
 ```text
-Creación como cliente: correcta
-Pedido vinculado al cliente y visible en mis-pedidos: correcto
-PUT incompleto: 400 sin modificar el pedido
-PUT completo: datos guardados correctamente
-Cliente, ID, estado y fecha de creación conservados
-El cliente ve los datos actualizados: correcto
-DELETE como administrador: correcto
-Consulta por ID después de eliminar: 404
-El pedido eliminado ya no aparece en mis-pedidos
-Prueba correcta: true
+Prueba CRUD con email correcta: true
 ```
 
-El script elimina el pedido que crea. Si ocurre un error antes de eliminarlo, intenta retirarlo al finalizar. Si la limpieza falla, informa el ID para revisarlo.
+El pedido de prueba fue eliminado.
 
-Una comprobación fallida establece un código de salida distinto de cero.
+Si ocurre un error, el script intenta limpiarlo al finalizar. Si no puede, informa el ID pendiente de revisión.
 
-### Validar un estado inválido
+Las aserciones fallidas establecen un código de salida distinto de cero.
+
+### Separación de clientes y acceso administrativo
+
+```bash
+node scripts/probarAccesoPedidosEmail.js
+```
+
+Solicita un administrador y dos clientes existentes distintos. Oculta las contraseñas y no imprime tokens.
+
+Crea un pedido por cliente usando el mismo email de contacto.
+
+Verifica:
+
+- Cada cliente ve su pedido y no ve el del otro.
+- Cada pedido conserva el vínculo con su cliente.
+- El administrador ve ambos pedidos.
+- Ambos clientes reciben 401 en las cinco rutas administrativas.
+- Los diez intentos rechazados no modifican el pedido comprobado.
+- Un estado inventado responde 400 sin modificar el pedido.
+
+Resultado verificado el 19/10/2026:
+
+```text
+Prueba de acceso a pedidos con email correcta: true
+```
+
+Los dos pedidos de prueba fueron eliminados durante la limpieza.
+
+El rechazo de tokens cliente no constituye una prueba de expiración.
+
+### Validación aislada del esquema
+
+El 19/10/2026 se comprobaron seis casos para POST y seis para PUT:
+
+| Entrada | Resultado |
+|---|---|
+| Correo válido | Aceptado |
+| Correo en mayúsculas | Aceptado y convertido a minúsculas |
+| Correo con espacios exteriores | Aceptado y normalizado |
+| Correo inválido | Rechazado |
+| Correo con espacios internos | Rechazado |
+| Texto vacío | Rechazado |
+
+Resultado:
+
+```text
+Validación de email correcta: true
+```
+
+Esta prueba no usa HTTP ni guarda documentos.
+
+La normalización también se verificó mediante la API con el script de CRUD.
+
+### Script independiente de estado inválido
 
 ```bash
 node scripts/probarPedidoAdmin.js
 ```
 
-Solicita credenciales administrativas y el ID de un pedido de prueba existente.
+Solicita credenciales administrativas y el ID de un pedido existente.
 
-Envía el estado `inventado` y comprueba que la API responda 400 y que el estado guardado se conserve.
+No crea ni elimina pedidos. Conserva la entrada visible de contraseña; no compartir credenciales en capturas o mensajes.
 
-Resultado verificado:
+Antes del cambio a email, su resultado fue:
 
 ```text
-Estado antes: nuevo
-Estado inválido HTTP: 400
-Mensaje: Los datos enviados no son válidos
-Estado después: nuevo
 Validación correcta: true
 ```
 
-Este script no crea ni elimina pedidos.
+No se volvió a ejecutar ese script independiente en esta ronda. El estado inválido con email se comprobó dentro de probarAccesoPedidosEmail.js.
 
-Para ejecutarlo, crear previamente un pedido con una sesión de cliente. Al terminar, eliminar ese pedido de prueba desde Postman con una sesión administrativa.
+## Postman
 
-El pedido utilizado para esta comprobación se eliminó desde Postman con respuesta HTTP 200.
+Colección versionada:
+
+[Lara Pastelería API](./postman/Lara-Pasteleria-API.postman_collection.json)
+
+La colección contiene 51 solicitudes e incluye las cinco de Usuarios.
+
+No contiene aserciones automatizadas. El script previo calcula fechas y no verifica resultados.
+
+### Variables principales
+
+| Variable | Uso |
+|---|---|
+| baseUrl | http://localhost:4000 |
+| token | Token administrativo |
+| clienteEmail | Email del primer cliente |
+| clienteToken | Token del primer cliente |
+| cliente2Token | Token del segundo cliente |
+| pedidoID | ID del pedido de prueba |
+
+Las variables de credenciales y la configuración completa se detallan en README.md.
+
+Respetar pedidoID con ID en mayúsculas.
+
+Guardar tokens sin comillas ni prefijo Bearer. Las solicitudes agregan el prefijo.
+
+No compartir ni exportar credenciales o tokens reales.
+
+### Fechas automáticas
+
+El script previo calcula según Buenos Aires:
+
+| Variable | Valor |
+|---|---|
+| fechaPedido | Hoy más 30 días |
+| fechaSinAnticipacion | Hoy |
+
+No hace falta definir estas variables manualmente en el entorno.
+
+Los cuerpos de pedidos utilizan email con la variable clienteEmail.
+
+### Flujo manual
+
+1. Iniciar sesión como cliente y actualizar clienteToken.
+2. Crear un pedido: esperar 201 y estado nuevo.
+3. Guardar el ID en pedidoID.
+4. Consultar mis-pedidos y verificar los datos.
+5. Iniciar sesión como administrador y actualizar token.
+6. Ejecutar PUT con los siete campos.
+7. Verificar ID, cliente, estado y createdAt.
+8. Probar una torta para hoy: esperar 400 por anticipación.
+9. Cambiar el estado como administrador.
+10. Eliminar el pedido.
+11. Consultar el mismo ID: esperar 404.
+12. Consultar mis-pedidos y comprobar que ya no aparezca.
+
+Para repetir el flujo, crear otro pedido y actualizar pedidoID.
+
+### Resultados con email del 19/10/2026
+
+| Prueba | Resultado observado |
+|---|---|
+| Login cliente y admin | 200 |
+| Crear pedido | 201 y estado nuevo |
+| Consultar mis-pedidos | 200, email correcto y cliente vinculado |
+| Fecha automática | 2026-11-18 |
+| PUT administrativo | 200 |
+| Datos actualizados por PUT | Nombre, cantidad de personas y detalles |
+| Datos conservados por PUT | ID, cliente, estado nuevo y createdAt |
+| Email en PUT manual | Se mantuvo el mismo correo |
+| Torta sin anticipación | 400 en fecha |
+| Cambio de estado | 200, pendiente |
+| DELETE | 200 |
+| Consulta posterior por ID | 404 |
+| Mis-pedidos después del DELETE | 200 con pedidos vacío |
+
+El pedido de prueba fue eliminado.
+
+El cambio a un email diferente y su normalización se comprobaron con el script de CRUD. El PUT manual mantuvo el mismo correo.
+
+Esta ronda no implica que se hayan ejecutado nuevamente las 51 solicitudes ni las pruebas de Usuarios.
+
+## Antecedentes anteriores al cambio a email
+
+Antes del reemplazo de WhatsApp se habían comprobado:
+
+- Registro y login de dos clientes.
+- Creación autenticada y consulta de pedidos propios.
+- Rechazo de creación y consulta propia sin token.
+- Separación entre pedidos de clientes.
+- Rechazo de rutas administrativas con token cliente.
+- Consulta administrativa y cambio de estado.
+- PUT conservando cliente, ID, estado y createdAt.
+- Visibilidad de los cambios para el cliente.
+- Rechazo de torta sin anticipación.
+- Rechazo de estado inválido sin modificar el estado anterior.
+- DELETE seguido de 404 y ausencia en mis-pedidos.
+
+Son resultados históricos. No prueban por sí solos el cambio actual a email.
+
+Los resultados de autenticación y límites anteriores se conservan en README.md.
+
+## Coordinación con el frontend
+
+Yami realiza la conexión en lara-pasteleria, rama feat/panel-administrativo.
+
+Coordinar el formulario y el store con los siete campos vigentes, incluido email.
+
+La integración debe:
+
+- Exigir sesión de cliente antes de crear pedidos.
+- Enviar el token cliente en Authorization.
+- Enviar los datos después de que el cliente revise el resumen.
+- Mostrar el estado de envío y evitar clics repetidos.
+- Mostrar los errores de validación junto a sus campos.
+- Confirmar la recepción únicamente después de un HTTP 201.
+- Aclarar que recibir la consulta no confirma una reserva.
+- Permitir consultar los pedidos propios.
+- Manejar el vencimiento de sesión solicitando un nuevo login.
+- Usar sesión administrativa para las operaciones del panel.
+
+No enviar el ID del cliente desde el formulario.
+
+Guardar el email de contacto no implica enviar un correo.
+
+El estado actual del frontend no se verificó durante esta ronda de backend.
+
+## Pendientes
+
+- Revisar los cambios e integrarlos a main mediante PR.
+- Verificar el límite de creación de pedidos.
+- Comprobar la recuperación después de las ventanas de bloqueo.
+- Definir y revisar otros escenarios concretos de autenticación.
+- Completar la verificación de Usuarios en Postman.
+- Conservar la colección completa al exportar.
+- Revisar CORS y variables para deploy.
+- Revisar acceso a Atlas y configuración de proxy para rate limiting.
+- Probar la integración desde la web publicada.

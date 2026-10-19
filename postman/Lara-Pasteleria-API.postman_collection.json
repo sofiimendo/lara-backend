@@ -26,7 +26,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"whatsapp\": \"1123456789\",\n  \"fecha\": \"2026-10-25\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
+              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"email\": \"{{clienteEmail}}\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -56,7 +56,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"whatsapp\": \"1123456789\",\n  \"fecha\": \"2026-10-25\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
+              "raw": "{\n  \"nombre\": \"Cliente prueba Sofi\",\n  \"email\": \"{{clienteEmail}}\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido de prueba de integración con cliente\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -285,7 +285,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Cliente editado Postman\",\n  \"whatsapp\": \"1155555678\",\n  \"fecha\": \"2026-10-31\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 15,\n  \"detalles\": \"Torta de chocolate. Consulta actualizada mediante PUT\"\n}",
+              "raw": "{\n  \"nombre\": \"Cliente editado Postman\",\n  \"email\": \"{{clienteEmail}}\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 15,\n  \"detalles\": \"Torta de chocolate. Consulta actualizada mediante PUT\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -400,7 +400,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Prueba anticipacion Postman\",\n  \"whatsapp\": \"1155551234\",\n  \"fecha\": \"2026-10-18\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Esta consulta debe rechazarse por falta de anticipacion\"\n}",
+              "raw": "{\n  \"nombre\": \"Prueba anticipacion Postman\",\n  \"email\": \"{{clienteEmail}}\",\n  \"fecha\": \"{{fechaSinAnticipacion}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Esta consulta debe rechazarse por falta de anticipacion\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1701,7 +1701,16 @@
         "packages": {},
         "requests": {},
         "exec": [
-          ""
+          "const partes = new Intl.DateTimeFormat('en-US', {",
+          "  timeZone: 'America/Argentina/Buenos_Aires',",
+          "  year: 'numeric', month: '2-digit', day: '2-digit'",
+          "}).formatToParts(new Date());",
+          "const obtener = tipo => partes.find(parte => parte.type === tipo).value;",
+          "const hoy = `${obtener('year')}-${obtener('month')}-${obtener('day')}`;",
+          "const futura = new Date(`${hoy}T12:00:00Z`);",
+          "futura.setUTCDate(futura.getUTCDate() + 30);",
+          "pm.variables.set('fechaPedido', futura.toISOString().slice(0, 10));",
+          "pm.variables.set('fechaSinAnticipacion', hoy);"
         ]
       }
     },

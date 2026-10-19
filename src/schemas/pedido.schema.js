@@ -82,10 +82,13 @@ const camposPedido = {
     .max(80, 'El nombre no puede superar los 80 caracteres'),
 
   email: z
-    .email('Ingresá un correo electrónico válido')
+    .string()
     .trim()
     .toLowerCase()
-    .max(254, 'El correo electrónico es demasiado largo'),
+    .pipe(
+      z.email('Ingresá un correo electrónico válido')
+        .max(254, 'El correo electrónico es demasiado largo')
+    ),
 
   fecha: z
     .string()
