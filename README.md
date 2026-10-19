@@ -42,6 +42,15 @@ pnpm install --frozen-lockfile
 
 Se necesita una versión de Node.js compatible con las dependencias del proyecto y con `fetch`.
 
+Entorno local utilizado en las comprobaciones del 19/10/2026:
+
+| Herramienta | Versión |
+|---|---|
+| Node.js | 26.3.0 |
+| pnpm | 11.17.0 |
+
+Estas son las versiones locales observadas. Su disponibilidad y compatibilidad en el proveedor de hosting todavía deben confirmarse.
+
 ### 3. Configurar el entorno
 
 Copiar `.env.example` como `.env` y completar los valores localmente.
@@ -59,11 +68,23 @@ No subir credenciales, secretos ni tokens al repositorio. Reiniciar el servidor 
 
 En Atlas, verificar los permisos del usuario de base de datos y habilitar la IP correspondiente.
 
+El servidor espera la conexión a MongoDB antes de iniciar la escucha HTTP.
+
 ### 4. Iniciar el servidor
+
+Para desarrollo, con reinicio automático:
 
 ```bash
 pnpm dev
 ```
+
+Para iniciar sin nodemon:
+
+```bash
+pnpm start
+```
+
+El comando start ejecuta `node server.js`.
 
 Mensajes esperados:
 
@@ -73,6 +94,8 @@ API de Lara disponible en http://localhost:4000
 ```
 
 Mantener esa terminal abierta y usar otra para ejecutar pruebas.
+
+Con `pnpm start`, los cambios de archivos requieren reiniciar el proceso manualmente.
 
 ## Comprobar la API
 
@@ -90,6 +113,104 @@ Respuesta esperada: HTTP 200.
 ```
 
 La dirección raíz no tiene una ruta definida y responde 404.
+
+## CORS y comprobaciones locales para deploy
+
+La configuración actual permite:
+
+- `http://localhost:5173`.
+- El valor de `FRONTEND_URL`.
+- Si `FRONTEND_URL` no está definido, utiliza `https://lara-pasteleria.vercel.app` como alternativa.
+
+La URL alternativa presente en el código no demuestra que el frontend esté publicado ni que sea su dirección definitiva.
+
+### Resultados verificados el 19/10/2026
+
+| Comprobación | Resultado observado |
+|---|---|
+| Inicio con `pnpm start` | Conexión a MongoDB e inicio HTTP correctos. |
+| GET /api/health después de iniciar con start | 200 y `ok: true`. |
+| Preflight desde http://localhost:5173 | 204 con Access-Control-Allow-Origin para ese origen. |
+| Método solicitado en el preflight | POST permitido. |
+| Encabezados solicitados | authorization y content-type permitidos. |
+| Preflight desde https://origen-no-permitido.example | 204 sin Access-Control-Allow-Origin. |
+| JSON mal formado en login cliente | 400 con mensaje específico. |
+| Cuerpo JSON superior al límite de 100kb | 413 con mensaje específico. |
+
+Las comprobaciones se realizaron sobre la API local. No prueban todavía la integración desde un navegador ni el funcionamiento del hosting publicado.
+
+CORS determina qué respuestas puede utilizar un navegador desde otro origen. No sustituye la autenticación ni impide por sí solo solicitudes realizadas con curl u otros clientes.
+
+### Repetir el preflight permitido
+
+```bash
+curl --max-time 10 -i -X OPTIONS http://localhost:4000/api/pedidos \
+  -H "Origin: http://localhost:5173" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,content-type"
+```
+
+Se observó HTTP 204 con:
+
+```text
+Access-Control-Allow-Origin: http://localhost:5173
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE
+Access-Control-Allow-Headers: authorization,content-type
+```
+
+### Repetir el preflight de origen no permitido
+
+```bash
+curl --max-time 10 -i -X OPTIONS http://localhost:4000/api/pedidos \
+  -H "Origin: https://origen-no-permitido.example" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,content-type"
+```
+
+Se observó HTTP 204 sin Access-Control-Allow-Origin. El código 204 por sí solo no indica que el origen esté permitido.
+
+### JSON mal formado
+
+```bash
+curl --max-time 10 -i http://localhost:4000/api/clientes/login \
+  -H "Content-Type: application/json" \
+  --data-binary '{"email":'
+```
+
+Resultado verificado: HTTP 400.
+
+```json
+{
+  "message": "El JSON enviado no tiene un formato válido"
+}
+```
+
+### Cuerpo demasiado grande
+
+```bash
+python3 -c 'import json; print(json.dumps({"email": "a" * 110000}))' \
+  | curl --max-time 10 -i http://localhost:4000/api/clientes/login \
+      -H "Content-Type: application/json" \
+      --data-binary @-
+```
+
+Resultado verificado: HTTP 413.
+
+```json
+{
+  "message": "Los datos enviados superan el tamaño permitido"
+}
+```
+
+Estas dos pruebas de errores no crearon cuentas ni pedidos.
+
+### Estado de la preparación
+
+Esta revisión se realiza en `chore/preparar-deploy`.
+
+Hasta estas comprobaciones no se modificaron archivos de configuración. La actualización de esta documentación registra los resultados locales.
+
+Todavía falta confirmar el proveedor de hosting y las URLs definitivas antes de ajustar CORS, variables y configuración de proxy.
 
 ## Cuenta administradora inicial
 
@@ -121,7 +242,7 @@ Actualmente no existe recuperación de contraseña ni envío automático de corr
 
 El registro de clientes exige `nombre`, `email` y `password`. Asigna el rol `cliente` y `activo: true`.
 
-Las contraseñas requieren entre 12 caracteres y 72 bytes UTF-8 y se guardan como hashes bcrypt.
+Las contraseñas requieren al menos 12 caracteres y como máximo 72 bytes UTF-8. Se guardan como hashes bcrypt.
 
 El login administrativo solo admite cuentas admin activas.
 
@@ -547,18 +668,22 @@ git switch -c feat/nombre-de-la-tarea
 
 Revisar cambios, crear un commit, subir la rama y abrir un Pull Request hacia main.
 
-La ronda de pedidos con email se está preparando en `test/pedidos-email`. No se debe presentar como integrada a main hasta completar el PR.
+El cambio de pedidos a email se integró mediante el PR #16. Se confirmó main local sincronizado con origin/main en el commit `804fb8f`.
+
+La preparación de deploy continúa en `chore/preparar-deploy`.
 
 ## Pendientes
 
-- Revisar los cambios de pedidos con email e integrarlos mediante PR.
 - Verificar Usuarios en Postman.
 - Definir y completar otros escenarios concretos de autenticación.
 - Verificar el límite de creación de pedidos.
 - Comprobar la recuperación después de las ventanas de bloqueo.
 - Conservar las 51 solicitudes y la carpeta Usuarios al exportar.
 - Completar la integración del formulario y panel con Yami.
-- Revisar CORS y variables para deploy.
+- Confirmar proveedor de hosting y URLs definitivas.
+- Confirmar versiones de Node.js y pnpm en el hosting.
+- Revisar CORS con el origen definitivo del frontend.
+- Configurar las variables del entorno publicado.
 - Revisar acceso a Atlas y configuración de proxy para rate limiting.
 - Desplegar la API.
 - Probar la integración desde la web publicada.
