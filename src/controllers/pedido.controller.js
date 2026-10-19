@@ -1,5 +1,9 @@
 import mongoose from 'mongoose'
 import * as pedidoService from '../services/pedido.service.js'
+import {
+  reemplazarPedidoSchema,
+  reemplazarPedidoPresencialSchema,
+} from '../schemas/pedido.schema.js'
 
 function validarId(id, res) {
   if (!mongoose.isObjectIdOrHexString(id)) {
@@ -28,6 +32,24 @@ export async function crearPedido(req, res, next) {
         id: pedido._id.toString(),
         estado: pedido.estado,
       },
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function crearPedidoPresencial(req, res, next) {
+  try {
+    const pedido = await pedidoService.crearPedidoPresencial(
+      req.body,
+      req.usuario._id
+    )
+
+    res.set('Cache-Control', 'no-store')
+
+    return res.status(201).json({
+      message: 'Pedido presencial creado correctamente',
+      pedido,
     })
   } catch (error) {
     next(error)
@@ -88,7 +110,34 @@ export async function reemplazarPedido(req, res, next) {
 
     if (!validarId(id, res)) return
 
-    const pedido = await pedidoService.reemplazarPedido(id, req.body)
+    const actual = await pedidoService.obtenerPedidoPorId(id)
+
+    if (!actual) {
+      return res.status(404).json({
+        message: 'Pedido no encontrado',
+      })
+    }
+
+    const esquema = actual.origen === 'presencial'
+      ? reemplazarPedidoPresencialSchema
+      : reemplazarPedidoSchema
+
+    const resultado = esquema.safeParse(req.body)
+
+    if (!resultado.success) {
+      return res.status(400).json({
+        message: 'Los datos enviados no son válidos',
+        errores: resultado.error.issues.map((detalle) => ({
+          campo: detalle.path.join('.'),
+          mensaje: detalle.message,
+        })),
+      })
+    }
+
+    const pedido = await pedidoService.reemplazarPedido(
+      id,
+      resultado.data
+    )
 
     if (!pedido) {
       return res.status(404).json({

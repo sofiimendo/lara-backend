@@ -7,6 +7,20 @@ const pedidoSchema = new mongoose.Schema(
       ref: 'Usuario',
       index: true,
     },
+    origen: {
+      type: String,
+      enum: ['web', 'presencial'],
+      default: 'web',
+      immutable: true,
+    },
+    creadoPor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: function () {
+        return this.origen === 'presencial'
+      },
+      immutable: true,
+    },
     nombre: {
       type: String,
       required: [true, 'El nombre es obligatorio'],
@@ -16,11 +30,46 @@ const pedidoSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'El correo electrónico es obligatorio'],
+      required: [
+        function () {
+          return this.origen !== 'presencial' || !this.telefono
+        },
+        'Ingresá un correo electrónico de contacto',
+      ],
       trim: true,
       lowercase: true,
       maxlength: 254,
-      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Ingresá un correo válido'],
+      validate: {
+        validator: function (valor) {
+          return !valor || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)
+        },
+        message: 'Ingresá un correo válido',
+      },
+    },
+    telefono: {
+      type: String,
+      trim: true,
+      maxlength: 25,
+      required: [
+        function () {
+          return this.origen === 'presencial' && !this.email
+        },
+        'Ingresá un teléfono o un correo electrónico de contacto',
+      ],
+      validate: {
+        validator: function (valor) {
+          if (!valor) return true
+
+          const digitos = valor.replace(/\D/g, '')
+
+          return (
+            /^\+?[0-9\s()-]+$/.test(valor) &&
+            digitos.length >= 8 &&
+            digitos.length <= 15
+          )
+        },
+        message: 'Ingresá un teléfono válido, con código de área',
+      },
     },
     fecha: {
       type: String,

@@ -1691,6 +1691,425 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Pedidos presenciales",
+      "description": "10 solicitudes nuevas, sin aserciones automáticas. Verificadas por script de API; su ejecución manual en Postman está pendiente. Primero completar el flujo del pedido con teléfono y eliminarlo. Después ejecutar por separado el pedido para hoy confirmado, actualizar pedidoPresencialID y eliminarlo. No ejecutar toda la colección sin revisar el orden.",
+      "item": [
+        {
+          "name": "Crear presencial con telefono",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 201. Guardar pedido._id en pedidoPresencialID. Verificar origen presencial, creadoPor del admin y ausencia de cliente. Eliminar al terminar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"11 1234 5678\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar presencial sin token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 401. No debe crear un pedido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"11 1234 5678\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar presencial con token cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 401 por audiencia administrativa. No prueba expiración.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"11 1234 5678\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar presencial sin contacto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 400; al menos email o telefono es obligatorio.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar torta presencial para hoy sin confirmacion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 400 en confirmarAnticipacion.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"11 1234 5678\",\n  \"fecha\": \"{{fechaSinAnticipacion}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear torta presencial para hoy con confirmacion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "admin"
+              ]
+            },
+            "description": "Esperado: 201. Crea OTRO pedido. Ejecutar por separado después de eliminar el primero; actualizar pedidoPresencialID con pedido._id y eliminar también este pedido. confirmarAnticipacion no se guarda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"11 1234 5678\",\n  \"fecha\": \"{{fechaSinAnticipacion}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\",\n  \"confirmarAnticipacion\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar presencial por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoPresencialID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoPresencialID}}"
+              ]
+            },
+            "description": "Esperado: 200 antes de eliminar y 404 después. Usa token admin."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar presencial con email sin telefono",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoPresencialID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoPresencialID}}"
+              ]
+            },
+            "description": "Esperado: 200. Verificar email normalizado y conservación de ID, origen, creadoPor, estado y createdAt. Los ocho campos son obligatorios. Este cuerpo cambia la fecha a hoy + 30 días.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial editado Postman\",\n  \"email\": \"  PRESENCIAL@EXAMPLE.COM  \",\n  \"telefono\": \"\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar PUT presencial sin contacto",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoPresencialID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoPresencialID}}"
+              ]
+            },
+            "description": "Esperado: 400. Consultar antes y después para verificar que no cambió el documento.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Presencial prueba Postman\",\n  \"email\": \"\",\n  \"telefono\": \"\",\n  \"fecha\": \"{{fechaPedido}}\",\n  \"tipoEvento\": \"Cumpleaños\",\n  \"pedido\": \"Torta\",\n  \"cantidadPersonas\": 10,\n  \"detalles\": \"Pedido temporal de prueba presencial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar presencial",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pedidos/{{pedidoPresencialID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "{{pedidoPresencialID}}"
+              ]
+            },
+            "description": "Esperado: 200. Repetir Consultar presencial por ID: 404. Solo usar el ID del pedido de prueba creado en esta ronda."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "event": [
