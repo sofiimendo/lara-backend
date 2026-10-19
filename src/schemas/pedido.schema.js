@@ -80,28 +80,23 @@ const camposPedido = {
     .trim()
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(80, 'El nombre no puede superar los 80 caracteres'),
-  whatsapp: z
-    .string()
-    .trim()
-    .max(25, 'El WhatsApp no puede superar los 25 caracteres')
-    .refine(
-      (valor) => {
-        const digitos = valor.replace(/\D/g, '')
 
-        return (
-          /^\+?[0-9\s()-]+$/.test(valor) &&
-          digitos.length >= 8 &&
-          digitos.length <= 15
-        )
-      },
-      'Ingresá un WhatsApp válido, con código de área'
-    ),
+  email: z
+    .email('Ingresá un correo electrónico válido')
+    .trim()
+    .toLowerCase()
+    .max(254, 'El correo electrónico es demasiado largo'),
+
   fecha: z
     .string()
     .refine(fechaValida, 'Seleccioná una fecha válida'),
+
   tipoEvento: z.enum(['', 'Cumpleaños', 'Reunión', 'Otro']),
+
   pedido: z.enum(opcionesPedido),
+
   cantidadPersonas: cantidadPersonasSchema,
+
   detalles: z
     .string()
     .trim()
@@ -111,7 +106,7 @@ const camposPedido = {
 export const crearPedidoSchema = z
   .strictObject({
     nombre: camposPedido.nombre,
-    whatsapp: camposPedido.whatsapp,
+    email: camposPedido.email,
     fecha: camposPedido.fecha,
     tipoEvento: camposPedido.tipoEvento.optional(),
     pedido: camposPedido.pedido,

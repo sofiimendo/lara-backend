@@ -4,7 +4,7 @@ export async function crearPedido(datos, clienteId) {
   return Pedido.create({
     cliente: clienteId,
     nombre: datos.nombre,
-    whatsapp: datos.whatsapp,
+    email: datos.email,
     fecha: datos.fecha,
     tipoEvento: datos.tipoEvento,
     pedido: datos.pedido,
@@ -32,7 +32,7 @@ export async function reemplazarPedido(id, datos) {
     {
       $set: {
         nombre: datos.nombre,
-        whatsapp: datos.whatsapp,
+        email: datos.email,
         fecha: datos.fecha,
         tipoEvento: datos.tipoEvento,
         pedido: datos.pedido,

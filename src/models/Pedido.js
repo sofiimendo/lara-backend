@@ -14,11 +14,13 @@ const pedidoSchema = new mongoose.Schema(
       minlength: 2,
       maxlength: 80,
     },
-    whatsapp: {
+    email: {
       type: String,
-      required: [true, 'El WhatsApp es obligatorio'],
+      required: [true, 'El correo electrónico es obligatorio'],
       trim: true,
-      maxlength: 25,
+      lowercase: true,
+      maxlength: 254,
+      match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Ingresá un correo válido'],
     },
     fecha: {
       type: String,
