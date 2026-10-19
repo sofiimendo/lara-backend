@@ -61,6 +61,40 @@ function validarAnticipacion(datos, contexto) {
   }
 }
 
+function validarPedidoPresencial(datos, contexto) {
+  if (!datos.email && !datos.telefono) {
+    contexto.addIssue({
+      code: 'custom',
+      path: ['email'],
+      message: 'Ingresá al menos un contacto: email o teléfono',
+    })
+  }
+
+  if (!fechaValida(datos.fecha)) return
+
+  if (datos.fecha < obtenerFechaMinima('Otro pedido')) {
+    contexto.addIssue({
+      code: 'custom',
+      path: ['fecha'],
+      message: 'La fecha no puede ser anterior a hoy',
+    })
+
+    return
+  }
+
+  if (
+    datos.fecha < obtenerFechaMinima(datos.pedido) &&
+    !datos.confirmarAnticipacion
+  ) {
+    contexto.addIssue({
+      code: 'custom',
+      path: ['confirmarAnticipacion'],
+      message:
+        'Confirmá que podés preparar este pedido con menos de 5 días de anticipación',
+    })
+  }
+}
+
 const cantidadPersonasSchema = z
   .union([
     z.number(),
@@ -74,6 +108,46 @@ const cantidadPersonasSchema = z
       .max(Number.MAX_SAFE_INTEGER, 'La cantidad es demasiado grande')
   )
 
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(
+    z.email('Ingresá un correo electrónico válido')
+      .max(254, 'El correo electrónico es demasiado largo')
+  )
+
+const emailPresencialSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(
+    z.union([
+      z.literal(''),
+      z.email('Ingresá un correo electrónico válido')
+        .max(254, 'El correo electrónico es demasiado largo'),
+    ])
+  )
+
+const telefonoSchema = z
+  .string()
+  .trim()
+  .max(25, 'El teléfono no puede superar los 25 caracteres')
+  .refine(
+    (valor) => {
+      if (valor === '') return true
+
+      const digitos = valor.replace(/\D/g, '')
+
+      return (
+        /^\+?[0-9\s()-]+$/.test(valor) &&
+        digitos.length >= 8 &&
+        digitos.length <= 15
+      )
+    },
+    'Ingresá un teléfono válido, con código de área'
+  )
+
 const camposPedido = {
   nombre: z
     .string()
@@ -81,14 +155,7 @@ const camposPedido = {
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(80, 'El nombre no puede superar los 80 caracteres'),
 
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .pipe(
-      z.email('Ingresá un correo electrónico válido')
-        .max(254, 'El correo electrónico es demasiado largo')
-    ),
+  email: emailSchema,
 
   fecha: z
     .string()
@@ -121,6 +188,29 @@ export const crearPedidoSchema = z
 export const reemplazarPedidoSchema = z
   .strictObject(camposPedido)
   .superRefine(validarAnticipacion)
+
+export const crearPedidoPresencialSchema = z
+  .strictObject({
+    nombre: camposPedido.nombre,
+    email: emailPresencialSchema.default(''),
+    telefono: telefonoSchema.default(''),
+    fecha: camposPedido.fecha,
+    tipoEvento: camposPedido.tipoEvento.optional(),
+    pedido: camposPedido.pedido,
+    cantidadPersonas: camposPedido.cantidadPersonas.optional(),
+    detalles: camposPedido.detalles.optional(),
+    confirmarAnticipacion: z.boolean().optional(),
+  })
+  .superRefine(validarPedidoPresencial)
+
+export const reemplazarPedidoPresencialSchema = z
+  .strictObject({
+    ...camposPedido,
+    email: emailPresencialSchema,
+    telefono: telefonoSchema,
+    confirmarAnticipacion: z.boolean().optional(),
+  })
+  .superRefine(validarPedidoPresencial)
 
 export const actualizarEstadoPedidoSchema = z.strictObject({
   estado: z.enum([

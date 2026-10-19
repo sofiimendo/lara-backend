@@ -6,7 +6,7 @@ import { autenticarCliente } from '../middlewares/autenticarCliente.js'
 import { validarBody } from '../middlewares/validarBody.js'
 import {
   crearPedidoSchema,
-  reemplazarPedidoSchema,
+  crearPedidoPresencialSchema,
   actualizarEstadoPedidoSchema,
 } from '../schemas/pedido.schema.js'
 
@@ -21,6 +21,14 @@ const limitarConsultas = rateLimit({
     message: 'Demasiadas consultas. Volvé a intentar en 15 minutos',
   },
 })
+
+router.post(
+  '/admin',
+  autenticar,
+  soloAdmin,
+  validarBody(crearPedidoPresencialSchema),
+  pedidoController.crearPedidoPresencial
+)
 
 router.post(
   '/',
@@ -54,7 +62,6 @@ router.put(
   '/:id',
   autenticar,
   soloAdmin,
-  validarBody(reemplazarPedidoSchema),
   pedidoController.reemplazarPedido
 )
 
