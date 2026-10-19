@@ -154,7 +154,23 @@ El token vence en una hora. Las operaciones protegidas requieren:
 Authorization: Bearer TOKEN
 ```
 
-Las credenciales incorrectas responden 401. El login limita a 10 intentos fallidos por IP en 15 minutos; al superar el límite responde 429.
+Las credenciales incorrectas responden 401. Se verificó que una contraseña incorrecta y un email inexistente devuelven el mismo mensaje:
+
+```json
+{
+  "message": "Email o contraseña incorrectos"
+}
+```
+
+El login limita a 10 intentos fallidos por IP en 15 minutos; al superar el límite responde 429.
+
+Se verificó la respuesta:
+
+```json
+{
+  "message": "Demasiados intentos. Volvé a intentar en 15 minutos"
+}
+```
 
 Las rutas administrativas verifican el token y que la cuenta siga activa y tenga rol admin.
 
@@ -167,15 +183,24 @@ Las rutas administrativas verifican el token y que la cuenta siga activa y tenga
 
 El registro exige `nombre`, `email` y `password`, normaliza el email y asigna exclusivamente el rol `cliente` y `activo: true`.
 
-La contraseña exige al menos 12 caracteres y un máximo de 72 bytes UTF-8; se almacena como hash bcrypt. Los emails duplicados responden 409 y los campos desconocidos se rechazan.
+La contraseña exige al menos 12 caracteres y un máximo de 72 bytes UTF-8; se almacena como hash bcrypt.
+
+Los emails duplicados responden 409 y los campos desconocidos se rechazan.
 
 El registro responde 201 con `message` y `cliente`, sin contraseña ni hash.
 
-El login correcto responde 200 con `message`, `token` y `cliente`. Las credenciales incorrectas responden 401.
+El login correcto responde 200 con `message`, `token` y `cliente`. Se verificó que una contraseña incorrecta y un email inexistente responden 401.
 
 El token de cliente dura una hora y usa la audiencia `lara-cliente`.
 
-El registro admite 5 solicitudes por IP cada 15 minutos y el login de clientes, 10 solicitudes por IP cada 15 minutos, incluidos los intentos exitosos. Al superar el límite responden 429.
+El registro admite 5 solicitudes por IP cada 15 minutos y el login de clientes, 10 solicitudes por IP cada 15 minutos, incluidos los intentos exitosos.
+
+Se verificaron ambos límites con respuesta 429:
+
+| Operación | Mensaje |
+|---|---|
+| Registro | Demasiados intentos de registro. Volvé a intentar en 15 minutos |
+| Login | Demasiados intentos de inicio de sesión. Volvé a intentar en 15 minutos |
 
 Las rutas de cliente verifican token, audiencia, cuenta activa y rol.
 
@@ -281,7 +306,7 @@ Después de eliminar el pedido de prueba, se verificó que la consulta administr
 
 Las tortas y medialunas requieren al menos cinco días de anticipación. Los demás pedidos admiten fechas desde hoy. La validación utiliza la fecha de Buenos Aires y el formato `YYYY-MM-DD`.
 
-La creación requiere un token de cliente y está limitada a 10 solicitudes por IP en 15 minutos, después de autenticar.
+La creación requiere un token de cliente y está limitada a 10 solicitudes por IP en 15 minutos, después de autenticar. La respuesta 429 de este límite todavía está pendiente de verificación.
 
 El backend toma el ID del cliente desde la sesión, no desde el cuerpo enviado.
 
@@ -370,16 +395,21 @@ La colección está disponible en:
 
 [Lara Pastelería API — colección de Postman](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-La colección contiene 40 solicitudes:
+La colección contiene 51 solicitudes:
 
-- 13 de autenticación administrativa y productos.
-- 15 en la carpeta Pedidos.
-- 7 de registro/login de clientes y consulta de pedidos propios.
-- 5 en la carpeta Usuarios, conservadas de Yami.
+| Grupo | Cantidad |
+|---|---:|
+| Autenticación administrativa y productos, incluidas las nuevas pruebas de login admin | 16 |
+| Carpeta Pedidos | 15 |
+| Clientes, pedidos propios y nuevas pruebas de registro/login cliente | 15 |
+| Carpeta Usuarios, conservada de Yami | 5 |
+| Total | 51 |
 
-Los CRUD de productos y pedidos se probaron manualmente antes de integrar clientes. Después de esa integración se verificaron los casos detallados más abajo, incluidos PUT y DELETE de pedidos; esto no implica que las 40 solicitudes se hayan ejecutado nuevamente.
+Los CRUD de productos y pedidos se probaron manualmente antes de integrar clientes. Después se verificaron los casos de clientes y pedidos detallados más abajo y las nuevas pruebas de autenticación y límites.
 
-Las pruebas manuales del módulo de usuarios están documentadas en [USUARIOS.md](./USUARIOS.md). Queda completar su verificación en Postman y los casos adicionales de autenticación y límites de solicitudes.
+Esto no implica que las 51 solicitudes se hayan ejecutado nuevamente.
+
+Las pruebas manuales del módulo de usuarios están documentadas en [USUARIOS.md](./USUARIOS.md). Queda completar su verificación en Postman.
 
 La colección no contiene pruebas automatizadas con aserciones. Guardar solicitudes no implica que los resultados se verifiquen automáticamente.
 
@@ -410,7 +440,9 @@ La colección define `baseUrl` como `http://localhost:4000`. Puede modificarse p
 
 Los nombres de las variables distinguen mayúsculas y minúsculas: usar `productoID` y `pedidoID`, con ID en mayúsculas, y `usuarioId`, con Id.
 
-Guardar credenciales y tokens únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales. La colección utiliza referencias a variables y no incluye credenciales reales.
+Guardar credenciales y tokens únicamente como valores locales. No compartirlos ni exportar el entorno con datos reales.
+
+La colección utiliza variables para credenciales y tokens reales. Las contraseñas literales de las pruebas negativas son ejemplos ficticios; `token-invalido` también es un valor deliberadamente inválido.
 
 ### Ejecución manual de productos
 
@@ -452,7 +484,7 @@ La solicitud `Consultar producto inexistente` conserva el ID de un producto de p
 17. Probar estado inválido y PUT incompleto: esperar 400. Probar listado sin token: esperar 401. Probar ID inválido con token admin válido: esperar 400. Consultar nuevamente para verificar que los rechazos no modificaron datos.
 18. Al terminar las comprobaciones, ejecutar `Eliminar pedido` como admin: esperar 200; consultar nuevamente por ID: esperar 404. Consultar los pedidos propios del cliente: esperar 200 y comprobar que el pedido eliminado ya no figure.
 
-### Resultados verificados tras integrar clientes
+### Resultados verificados de clientes y pedidos
 
 - Registro de dos clientes: 201, rol cliente, sin contraseña ni hash en la respuesta.
 - Login de ambos clientes y del administrador: 200.
@@ -465,17 +497,52 @@ La solicitud `Consultar producto inexistente` conserva el ID de un producto de p
 - El intento rechazado de cambiar el estado no altera estado ni fecha de actualización.
 - El segundo cliente recibe una lista vacía y su consulta directa del pedido por ID responde 401.
 - Torta sin anticipación con token cliente: 400 por la fecha.
-- PUT administrativo: 200 con el mensaje `Datos del pedido actualizados correctamente`. Actualizó los siete campos del formulario y conservó cliente, ID, estado `pendiente` y `createdAt`.
-- Después del PUT, el cliente consultó sus pedidos y vio los datos actualizados: nombre `Cliente editado Postman`, fecha `2026-10-31` y 15 personas.
+- PUT administrativo: 200 con el mensaje `Datos del pedido actualizados correctamente`. Actualizó los siete campos y conservó cliente, ID, estado `pendiente` y `createdAt`.
+- Después del PUT, el cliente vio los datos actualizados: nombre `Cliente editado Postman`, fecha `2026-10-31` y 15 personas.
 - DELETE administrativo: respuesta con el mensaje `Pedido eliminado correctamente`.
-- Consulta administrativa por ID después del DELETE: 404 con el mensaje `Pedido no encontrado`.
+- Consulta administrativa por ID después del DELETE: 404 con `Pedido no encontrado`.
 - Consulta de pedidos propios después del DELETE: 200 con `pedidos: []`.
 
 Además, mediante los scripts se verificaron PUT incompleto sin modificaciones, PUT completo, conservación del vínculo, consulta de datos actualizados, DELETE y rechazo de un estado inválido.
 
-Los pedidos utilizados en estas pruebas ya fueron eliminados. Para repetir el flujo, crear un pedido nuevo y actualizar la variable `pedidoID`.
+Los pedidos utilizados en estas pruebas ya fueron eliminados. Para repetir el flujo, crear un pedido nuevo y actualizar `pedidoID`.
 
-El listado administrativo sin token y el ID inválido no se repitieron en estas últimas rondas. Los pasos de ejecución describen cómo probarlos; no deben interpretarse como resultados nuevos.
+El listado administrativo sin token y el ID inválido no se repitieron en estas últimas rondas. Los pasos describen cómo probarlos; no deben interpretarse como resultados nuevos.
+
+### Resultados verificados de autenticación y registro
+
+| Caso | Resultado |
+|---|---|
+| Login admin con contraseña incorrecta | 401 |
+| Login admin con email inexistente | 401, mismo mensaje que con contraseña incorrecta |
+| Login cliente con contraseña incorrecta | 401 |
+| Login cliente con email inexistente | 401 |
+| Registro de cliente con email ya registrado | 409: Ya existe una cuenta con ese email |
+| Registro enviando `rol: "admin"` | 400, campo `rol` no permitido |
+| Registro enviando `activo: true` | 400, campo `activo` no permitido |
+| Registro con contraseña menor a 12 caracteres | 400, error en `password` |
+
+Las solicitudes de registro se verificaron sobre `/api/clientes/registro`.
+
+Estas pruebas comprueban los casos indicados. No sustituyen las verificaciones pendientes de otros escenarios de autenticación.
+
+### Resultados verificados de límites
+
+| Ruta | Resultado observado |
+|---|---|
+| POST /api/clientes/registro | 429: Demasiados intentos de registro. Volvé a intentar en 15 minutos |
+| POST /api/clientes/login | 429: Demasiados intentos de inicio de sesión. Volvé a intentar en 15 minutos |
+| POST /api/auth/login | 429: Demasiados intentos. Volvé a intentar en 15 minutos |
+
+Las pruebas repitieron solicitudes negativas hasta observar 429. Como había intentos previos en las ventanas, estos resultados no verifican por sí solos el número exacto de solicitudes admitidas desde una ventana vacía.
+
+No se comprobó todavía la recuperación después de la ventana de bloqueo ni el límite de creación de pedidos.
+
+Ejecutar las pruebas de límites al final de las comprobaciones funcionales: pueden impedir temporalmente nuevos registros o inicios de sesión desde la misma IP.
+
+Para el registro se utilizó una contraseña corta, evitando crear cuentas adicionales. Para los límites de login se utilizaron contraseñas incorrectas.
+
+No ejecutar toda la colección sin revisar el orden, las variables y los registros de prueba.
 
 ### Ejecución manual de usuarios
 
@@ -489,7 +556,7 @@ La carpeta `Usuarios` conserva las cinco solicitudes aportadas por Yami.
 6. Ejecutar `Eliminar usuario`: debe responder 200.
 7. Consultar nuevamente el usuario eliminado: debe responder 404.
 
-Usar una cuenta administradora distinta de la cuenta de prueba para realizar estas operaciones. El backend impide eliminar o desactivar la cuenta que está realizando la solicitud.
+Usar una cuenta administradora distinta de la cuenta de prueba. El backend impide eliminar o desactivar la cuenta que está realizando la solicitud.
 
 Seguir también las validaciones y los resultados esperados de [USUARIOS.md](./USUARIOS.md). Eliminar la cuenta de prueba al terminar.
 
@@ -497,7 +564,7 @@ Seguir también las validaciones y los resultados esperados de [USUARIOS.md](./U
 
 El orden de la lista lateral no representa el orden de ejecución: seguir los pasos de esta documentación.
 
-Los tokens vencen en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar la variable local correspondiente: `token`, `clienteToken` o `cliente2Token`, según la sesión.
+Los tokens vencen en una hora. Si una operación protegida devuelve 401 por vencimiento, repetir el login y actualizar `token`, `clienteToken` o `cliente2Token`, según la sesión. Si el login está limitado con 429, esperar a que finalice su ventana.
 
 Las operaciones crean, modifican y eliminan datos reales en la base configurada. Usar registros de prueba.
 
@@ -551,7 +618,9 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 
 ## Pendientes para la entrega
 
-- Completar la verificación de usuarios en Postman y los casos adicionales de autenticación y rate limiting.
+- Completar la verificación de usuarios en Postman.
+- Completar los escenarios pendientes de autenticación.
+- Verificar el límite de creación de pedidos y la recuperación después de las ventanas de bloqueo.
 - Mantener sincronizada la colección completa en Postman, incluida la carpeta Usuarios.
 - Actualizar la documentación con los casos que se incorporen.
 - Integrar la landing y el panel de administración, a cargo de Yami.
