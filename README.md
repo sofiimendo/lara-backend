@@ -269,11 +269,13 @@ Los siete campos del formulario son:
 - cantidadPersonas
 - detalles
 
-PUT exige los siete campos y conserva el estado, el ID y la fecha de creación. La conservación del vínculo con el cliente debe comprobarse al repetir esta operación después de integrar clientes.
+PUT exige los siete campos y conserva el vínculo con el cliente, el estado, el ID y la fecha de creación. La conservación de estos datos se verificó manualmente después de integrar clientes. El cliente también pudo consultar los datos actualizados desde `mis-pedidos`.
 
 Los estados admitidos son `nuevo`, `pendiente`, `confirmado`, `entregado` y `cancelado`.
 
 DELETE elimina el registro; usar el estado `cancelado` cuando se quiera conservar el historial.
+
+Después de eliminar el pedido de prueba, se verificó que la consulta administrativa por ID respondiera 404 y que el pedido dejara de aparecer en `mis-pedidos`.
 
 Las tortas y medialunas requieren al menos cinco días de anticipación. Los demás pedidos admiten fechas desde hoy. La validación utiliza la fecha de Buenos Aires y el formato `YYYY-MM-DD`.
 
@@ -318,7 +320,7 @@ La colección contiene 40 solicitudes:
 - 7 de registro/login de clientes y consulta de pedidos propios.
 - 5 en la carpeta Usuarios, conservadas de Yami.
 
-Los CRUD de productos y pedidos se probaron manualmente antes de integrar clientes. Después de esa integración se verificaron los casos detallados más abajo; esto no implica que las 40 solicitudes se hayan ejecutado nuevamente.
+Los CRUD de productos y pedidos se probaron manualmente antes de integrar clientes. Después de esa integración se verificaron los casos detallados más abajo, incluidos PUT y DELETE de pedidos; esto no implica que las 40 solicitudes se hayan ejecutado nuevamente.
 
 Las pruebas manuales del módulo de usuarios están documentadas en [USUARIOS.md](./USUARIOS.md). Queda completar su verificación en Postman y los casos adicionales de autenticación y límites de solicitudes.
 
@@ -389,9 +391,9 @@ La solicitud `Consultar producto inexistente` conserva el ID de un producto de p
 13. Consultar los pedidos propios del segundo cliente: esperar 200 y `pedidos: []` si no creó pedidos. No debe incluir el pedido del primer cliente.
 14. Consultar el pedido del primero por ID con el token del segundo: esperar 401, porque la ruta por ID es administrativa.
 15. En `Rechazar torta sin anticipacion`, usar Bearer `{{clienteToken}}` y fecha de hoy en Buenos Aires: esperar 400 con el mensaje de los cinco días de anticipación.
-16. Para repetir el resto del CRUD como admin, ejecutar `Actualizar pedido` con los siete campos: esperar 200 y comprobar que conserva cliente, estado, ID y `createdAt`.
+16. Ejecutar `Actualizar pedido` como admin con los siete campos: esperar 200 y comprobar que conserva cliente, estado, ID y `createdAt`. Consultar `mis-pedidos` con el token del cliente y verificar que muestra los datos actualizados.
 17. Probar estado inválido y PUT incompleto: esperar 400. Probar listado sin token: esperar 401. Probar ID inválido con token admin válido: esperar 400. Consultar nuevamente para verificar que los rechazos no modificaron datos.
-18. Al terminar las comprobaciones, ejecutar `Eliminar pedido` como admin: esperar 200; consultar nuevamente por ID: esperar 404. Consultar los pedidos propios del cliente y verificar que ya no figure.
+18. Al terminar las comprobaciones, ejecutar `Eliminar pedido` como admin: esperar 200; consultar nuevamente por ID: esperar 404. Consultar los pedidos propios del cliente: esperar 200 y comprobar que el pedido eliminado ya no figure.
 
 ### Resultados verificados tras integrar clientes
 
@@ -406,10 +408,15 @@ La solicitud `Consultar producto inexistente` conserva el ID de un producto de p
 - El intento rechazado de cambiar el estado no altera estado ni fecha de actualización.
 - El segundo cliente recibe una lista vacía y su consulta directa del pedido por ID responde 401.
 - Torta sin anticipación con token cliente: 400 por la fecha.
+- PUT administrativo: 200 con el mensaje `Datos del pedido actualizados correctamente`. Actualizó los siete campos del formulario y conservó cliente, ID, estado `pendiente` y `createdAt`.
+- Después del PUT, el cliente consultó sus pedidos y vio los datos actualizados: nombre `Cliente editado Postman`, fecha `2026-10-31` y 15 personas.
+- DELETE administrativo: respuesta con el mensaje `Pedido eliminado correctamente`.
+- Consulta administrativa por ID después del DELETE: 404 con el mensaje `Pedido no encontrado`.
+- Consulta de pedidos propios después del DELETE: 200 con `pedidos: []`.
 
-El pedido usado en esta integración seguía existente y pendiente al documentar los resultados.
+El pedido de prueba utilizado en esta integración ya fue eliminado. Para repetir el flujo, crear un pedido nuevo y actualizar la variable `pedidoID`.
 
-No se volvió a ejecutar PUT ni DELETE en esta ronda. Las pruebas anteriores de PUT y DELETE corresponden al comportamiento previo a la integración de clientes. Los pasos anteriores describen cómo repetirlas; no deben interpretarse como resultados nuevos.
+Las comprobaciones de estado inválido, PUT incompleto, listado sin token e ID inválido no se repitieron en esta última ronda. Los pasos de ejecución describen cómo probarlas; no deben interpretarse como resultados nuevos.
 
 ### Ejecución manual de usuarios
 
@@ -486,7 +493,6 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 ## Pendientes para la entrega
 
 - Completar la verificación de usuarios en Postman y los casos adicionales de autenticación y rate limiting.
-- Repetir PUT y DELETE de pedidos tras integrar clientes, verificando que PUT conserve el vínculo con el cliente.
 - Revisar los scripts de pedidos y PEDIDOS.md para adaptarlos al acceso de clientes.
 - Mantener sincronizada la colección completa en Postman, incluida la carpeta Usuarios.
 - Actualizar la documentación con los casos que se incorporen.
