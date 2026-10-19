@@ -4,9 +4,17 @@ API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar
 
 Incluye CRUD de productos, pedidos y usuarios, validación de datos y autenticación de administradores y clientes.
 
-Admite consultas web de clientes y pedidos presenciales cargados por administradores.
+Admite consultas web de clientes registrados y pedidos presenciales cargados por administradores. No incluye carrito ni pagos.
 
-La integración del formulario y del panel está a cargo de Yami en `lara-pasteleria`, rama `feat/panel-administrativo`. La finalización del frontend no se verificó en esta ronda de backend.
+## Proyectos publicados
+
+| Proyecto | URL |
+|---|---|
+| Backend en Render | https://lara-backend-5tq4.onrender.com |
+| Health del backend | https://lara-backend-5tq4.onrender.com/api/health |
+| Landing en Vercel | https://lara-pasteleria.vercel.app |
+
+La configuración de CORS para el origen de Vercel fue comprobada. La integración completa del frontend publicado con la API sigue pendiente de verificación conjunta.
 
 ## Repositorios
 
@@ -15,6 +23,8 @@ La integración del formulario y del panel está a cargo de Yami en `lara-pastel
 | [lara-backend](https://github.com/sofiimendo/lara-backend) | API actual. |
 | [lara-pasteleria](https://github.com/sofiimendo/lara-pasteleria) | Landing y panel en React. |
 | lara-stock | Trabajo anterior de backend. |
+
+Yami trabaja en el frontend. Los cambios del backend se coordinan mediante campos y rutas compartidos.
 
 ## Tecnologías
 
@@ -26,23 +36,18 @@ La integración del formulario y del panel está a cargo de Yami en `lara-pastel
 - express-rate-limit.
 - cors y dotenv.
 - nodemon para desarrollo.
+- Render para alojar la API.
+- Vercel para alojar el frontend.
 
-## Instalación
+## Instalación local
 
-### Clonar
+### Clonar e instalar
 
 ```bash
 git clone https://github.com/sofiimendo/lara-backend.git
 cd lara-backend
-```
-
-### Instalar dependencias
-
-```bash
 pnpm install --frozen-lockfile
 ```
-
-Se necesita una versión de Node.js compatible con las dependencias y con fetch.
 
 Entorno local observado el 19/10/2026:
 
@@ -50,8 +55,6 @@ Entorno local observado el 19/10/2026:
 |---|---|
 | Node.js | 26.3.0 |
 | pnpm | 11.17.0 |
-
-La disponibilidad de estas versiones en el hosting todavía debe confirmarse.
 
 ### Configurar el entorno
 
@@ -61,14 +64,14 @@ Copiar `.env.example` como `.env` y completar los valores localmente.
 |---|---|
 | PORT | Puerto HTTP; localmente 4000. |
 | MONGODB_URI | Conexión a MongoDB Atlas. |
-| FRONTEND_URL | Origen del frontend. |
+| FRONTEND_URL | Origen permitido del frontend, sin rutas. |
 | JWT_SECRET | Secreto para JWT; al menos 32 caracteres. |
 
 Cada integrante configura su propio entorno.
 
 No subir credenciales, secretos ni tokens al repositorio. Reiniciar el servidor después de modificar variables.
 
-En Atlas, verificar los permisos del usuario y habilitar el acceso de red correspondiente.
+En Atlas, configurar los permisos del usuario de base de datos y el acceso de red correspondiente.
 
 El servidor espera la conexión a MongoDB antes de iniciar HTTP.
 
@@ -86,9 +89,9 @@ Inicio sin nodemon:
 pnpm start
 ```
 
-Start ejecuta node server.js. Los cambios requieren reinicio manual cuando se usa este comando.
+`pnpm start` ejecuta `node server.js`. Los cambios requieren reinicio manual cuando se utiliza este comando.
 
-Mensajes esperados:
+Mensajes esperados en local:
 
 ```text
 Conectado a MongoDB
@@ -98,7 +101,7 @@ API de Lara disponible en http://localhost:4000
 ## Health
 
 ```text
-GET http://localhost:4000/api/health
+GET /api/health
 ```
 
 Respuesta: HTTP 200.
@@ -110,93 +113,109 @@ Respuesta: HTTP 200.
 }
 ```
 
-La raíz no tiene ruta definida y responde 404.
+La raíz no tiene una ruta definida y responde 404.
 
-## CORS y comprobaciones locales para deploy
+Health comprueba que el servidor HTTP responde. No ejecuta una consulta a MongoDB en cada solicitud.
 
-La configuración actual permite:
+## Despliegue en Render
 
-- http://localhost:5173.
-- El valor de FRONTEND_URL.
-- Si FRONTEND_URL no está definido, utiliza https://lara-pasteleria.vercel.app como alternativa.
+Configuración utilizada:
 
-La URL alternativa en el código no demuestra que sea la dirección definitiva del frontend.
+| Opción | Valor |
+|---|---|
+| Repositorio | lara-backend |
+| Rama | main |
+| Directorio raíz | Raíz del repositorio. |
+| Build Command | pnpm install --frozen-lockfile |
+| Start Command | pnpm start |
+| Health Check Path | /api/health |
 
-### Resultados verificados el 19/10/2026
+Variables de producción:
+
+| Variable | Configuración |
+|---|---|
+| NODE_ENV | production |
+| NODE_VERSION | 26.3.0 |
+| MONGODB_URI | Valor privado configurado en Render. |
+| JWT_SECRET | Valor privado configurado en Render. |
+| FRONTEND_URL | https://lara-pasteleria.vercel.app |
+| PORT | Puerto proporcionado por Render. |
+| RENDER | Variable de la plataforma utilizada para activar la configuración del proxy. |
+
+No se incluyen los valores privados en esta documentación.
+
+MongoDB Atlas tiene habilitadas las direcciones de salida correspondientes al servicio de Render. El despliegue logró conectarse a MongoDB e iniciar la API.
+
+### Proxy
+
+Cuando `RENDER` es `true`, Express configura:
+
+```text
+trust proxy = 1
+```
+
+La comprobación específica del rate limiting detrás del proxy de Render sigue pendiente. Las pruebas locales de límites no prueban su comportamiento en producción.
+
+### Conexión con el frontend
+
+El backend utiliza `FRONTEND_URL` para permitir el origen del frontend.
+
+El frontend debe configurar `VITE_API_URL` para apuntar al backend publicado. La inclusión de `/api` en esa variable depende de cómo el frontend construya sus rutas.
+
+Modificar una variable del frontend requiere volver a desplegarlo para incorporarla a la compilación.
+
+## CORS
+
+La configuración permite:
+
+- `http://localhost:5173`.
+- El origen configurado en `FRONTEND_URL`, si existe.
+
+Se quitan espacios exteriores y barras finales de `FRONTEND_URL`.
+
+No se utiliza una URL pública alternativa cuando la variable está ausente.
+
+CORS no sustituye la autenticación ni impide por sí solo solicitudes realizadas con curl o Postman.
+
+### Pruebas locales verificadas
 
 | Comprobación | Resultado |
 |---|---|
-| Inicio con pnpm start | MongoDB conectado e inicio HTTP correcto. |
-| Health después de iniciar con start | 200 y ok true. |
-| Preflight desde localhost:5173 | 204 con Access-Control-Allow-Origin correspondiente. |
+| Preflight desde localhost:5173 | 204 con el origen permitido. |
 | Método POST | Permitido en el preflight. |
 | Encabezados authorization y content-type | Permitidos en el preflight. |
 | Preflight desde origen ajeno | 204 sin Access-Control-Allow-Origin. |
-| JSON mal formado en login cliente | 400 con mensaje específico. |
-| JSON superior al límite de 100kb | 413 con mensaje específico. |
 
-Son comprobaciones locales. No prueban todavía la integración en navegador ni el hosting publicado.
+### Pruebas en Render verificadas el 19/10/2026
 
-CORS no sustituye la autenticación ni bloquea por sí solo solicitudes con curl u otros clientes.
+| Comprobación | Resultado |
+|---|---|
+| Preflight desde https://lara-pasteleria.vercel.app | 204 con Access-Control-Allow-Origin correspondiente. |
+| Método POST | Permitido en el preflight. |
+| Encabezados authorization y content-type | Permitidos en el preflight. |
+| Preflight desde origen ajeno | 204 sin Access-Control-Allow-Origin. |
 
-### Preflight permitido
+Origen permitido:
 
 ```bash
-curl --max-time 10 -i -X OPTIONS http://localhost:4000/api/pedidos \
-  -H "Origin: http://localhost:5173" \
+curl --max-time 90 -i -X OPTIONS https://lara-backend-5tq4.onrender.com/api/pedidos \
+  -H "Origin: https://lara-pasteleria.vercel.app" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: authorization,content-type"
 ```
 
-### Preflight de origen no permitido
+Origen no permitido:
 
 ```bash
-curl --max-time 10 -i -X OPTIONS http://localhost:4000/api/pedidos \
+curl --max-time 90 -i -X OPTIONS https://lara-backend-5tq4.onrender.com/api/pedidos \
   -H "Origin: https://origen-no-permitido.example" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: authorization,content-type"
 ```
 
-Se observó 204 sin Access-Control-Allow-Origin. El código 204 por sí solo no indica permiso de origen.
+El código 204 por sí solo no indica permiso de origen. Se debe comprobar `Access-Control-Allow-Origin`.
 
-### JSON mal formado
-
-```bash
-curl --max-time 10 -i http://localhost:4000/api/clientes/login \
-  -H "Content-Type: application/json" \
-  --data-binary '{"email":'
-```
-
-Respuesta verificada: HTTP 400.
-
-```json
-{
-  "message": "El JSON enviado no tiene un formato válido"
-}
-```
-
-### Cuerpo demasiado grande
-
-```bash
-python3 -c 'import json; print(json.dumps({"email": "a" * 110000}))' \
-  | curl --max-time 10 -i http://localhost:4000/api/clientes/login \
-      -H "Content-Type: application/json" \
-      --data-binary @-
-```
-
-Respuesta verificada: HTTP 413.
-
-```json
-{
-  "message": "Los datos enviados superan el tamaño permitido"
-}
-```
-
-Estas pruebas no crearon cuentas ni pedidos.
-
-Las comprobaciones se documentaron mediante el PR #17, integrado en main con commit 56db427. No se modificó la configuración para publicarla en esa ronda.
-
-Falta confirmar hosting, URLs, variables y proxy.
+Estas pruebas verifican el preflight. No equivalen a completar los flujos desde el navegador del frontend publicado.
 
 ## Administrador inicial
 
@@ -206,15 +225,15 @@ No existe registro público de administradores.
 node scripts/crearAdmin.js
 ```
 
-El script utiliza ADMIN_NOMBRE, ADMIN_EMAIL y ADMIN_PASSWORD configurados localmente.
+El script utiliza `ADMIN_NOMBRE`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` configurados localmente.
 
 La contraseña requiere al menos 12 caracteres y como máximo 72 bytes UTF-8.
 
 Se guarda un hash bcrypt. Si el email existe, no se reemplaza la cuenta.
 
-Después de crearla, retirar las variables temporales ADMIN_* del entorno.
+Después de crearla, retirar las variables temporales `ADMIN_*` del entorno.
 
-Las cuentas adicionales se gestionan con el módulo Usuarios.
+Las cuentas administrativas adicionales se gestionan mediante Usuarios.
 
 No existe recuperación de contraseña ni envío automático de correos.
 
@@ -223,10 +242,10 @@ No existe recuperación de contraseña ni envío automático de correos.
 | Método | Ruta | Acción |
 |---|---|---|
 | POST | /api/auth/login | Login administrativo. |
-| POST | /api/clientes/registro | Registro cliente. |
-| POST | /api/clientes/login | Login cliente. |
+| POST | /api/clientes/registro | Registro de cliente. |
+| POST | /api/clientes/login | Login de cliente. |
 
-El registro exige nombre, email y password. Asigna rol cliente y activo true.
+El registro exige nombre, email y password. Asigna `rol: cliente` y `activo: true`.
 
 Las contraseñas se guardan como hashes bcrypt y requieren al menos 12 caracteres y un máximo de 72 bytes UTF-8.
 
@@ -249,18 +268,20 @@ Authorization: Bearer TOKEN
 
 Se verifican token, audiencia, cuenta activa y rol.
 
-Un token cliente en una ruta administrativa responde 401 por audiencia. No constituye una prueba de token vencido.
+Un token cliente en una ruta administrativa responde 401 por la separación de audiencias. Ese resultado no constituye una prueba de token vencido.
 
 ## Productos
 
-| Método | Ruta | Acceso |
-|---|---|---|
-| GET | /api/productos | Público |
-| GET | /api/productos/:id | Público |
-| POST | /api/productos | Admin |
-| PUT | /api/productos/:id | Admin |
-| PATCH | /api/productos/:id | Admin |
-| DELETE | /api/productos/:id | Admin |
+| Método | Ruta | Acción | Acceso |
+|---|---|---|---|
+| GET | /api/productos | Listar disponibles. | Público |
+| GET | /api/productos/admin | Listar todos. | Admin |
+| GET | /api/productos/admin/:id | Consultar cualquier producto por ID. | Admin |
+| GET | /api/productos/:id | Consultar un producto disponible. | Público |
+| POST | /api/productos | Crear. | Admin |
+| PUT | /api/productos/:id | Reemplazar datos editables. | Admin |
+| PATCH | /api/productos/:id | Actualizar parcialmente. | Admin |
+| DELETE | /api/productos/:id | Eliminar. | Admin |
 
 Campos editables:
 
@@ -271,7 +292,9 @@ Campos editables:
 - imagen
 - disponible
 
-POST exige nombre y precio. PUT exige los seis campos y conserva ID y fecha de creación. PATCH exige al menos un campo editable.
+POST exige nombre y precio.
+
+PUT exige los seis campos. PATCH exige al menos un campo editable.
 
 El precio debe ser mayor o igual a cero. Se rechazan campos desconocidos.
 
@@ -279,7 +302,31 @@ Crear responde 201. Las otras operaciones exitosas responden 200.
 
 ID inválido: 400. Producto inexistente: 404.
 
-El listado público incluye productos no disponibles. El filtrado del catálogo sigue pendiente y debe coordinarse con el listado administrativo.
+### Disponibilidad
+
+Las consultas públicas solo muestran productos con `disponible: true`.
+
+Un producto no disponible responde 404 en la consulta pública por ID, aunque exista en la base de datos.
+
+El panel debe utilizar las consultas administrativas para visualizar también los no disponibles.
+
+Las rutas de creación, edición y eliminación mantienen su ubicación original, sin `/admin`.
+
+### Pruebas locales de disponibilidad
+
+Se verificó con un producto temporal:
+
+- Creación con `disponible: false`: 201.
+- Listado público: no incluye el producto.
+- Consulta pública por ID: 404.
+- Listado y consulta administrativa: incluyen el producto.
+- Cambio a `disponible: true`: 200.
+- Listado y consulta pública: muestran el producto.
+- Consultas administrativas sin sesión o con token cliente: 401.
+- Eliminación administrativa: 200.
+- Consulta posterior administrativa: 404.
+
+El producto temporal fue eliminado.
 
 ## Pedidos
 
@@ -311,36 +358,36 @@ Opcionales al crear:
 - cantidadPersonas
 - detalles
 
-El backend toma cliente de la sesión y asigna origen web y estado nuevo.
+El backend toma `cliente` de la sesión y asigna `origen: web` y `estado: nuevo`.
 
-Email se normaliza quitando espacios exteriores y convirtiendo a minúsculas.
+El email se normaliza quitando espacios exteriores y convirtiéndolo a minúsculas antes de validar su formato.
 
-POST devuelve 201, mensaje y pedido con id y estado.
+POST devuelve 201, mensaje y un objeto `pedido` con `id` y `estado`.
 
-La ruta web no admite telefono ni confirmarAnticipacion.
+La ruta web no admite `telefono` ni `confirmarAnticipacion`.
 
 ### Pedidos presenciales
 
-POST /api/pedidos/admin exige sesión admin.
+`POST /api/pedidos/admin` exige sesión administrativa.
 
 No requiere cuenta cliente ni crea una cuenta ficticia.
 
 Exige nombre, fecha, pedido y al menos un contacto válido: email o telefono.
 
-TipoEvento, cantidadPersonas y detalles son opcionales al crear.
+`tipoEvento`, `cantidadPersonas` y `detalles` son opcionales al crear.
 
 Email o telefono pueden omitirse individualmente; se normalizan a texto vacío. Si se completan ambos, ambos deben ser válidos.
 
-El teléfono admite entre 8 y 15 dígitos, un máximo de 25 caracteres, espacios, guiones, paréntesis y + inicial. No verifica existencia ni disponibilidad de WhatsApp.
+El teléfono admite entre 8 y 15 dígitos, un máximo de 25 caracteres, espacios, guiones, paréntesis y un signo `+` inicial. No verifica existencia ni disponibilidad de WhatsApp.
 
 El backend asigna:
 
-- origen presencial.
-- creadoPor con el ID del administrador.
-- estado nuevo.
+- `origen: presencial`.
+- `creadoPor` con el ID del administrador.
+- `estado: nuevo`.
 - Sin cliente vinculado.
 
-Responde 201 con el mensaje Pedido presencial creado correctamente y el documento completo. Su ID se obtiene de pedido._id.
+Responde 201 con el mensaje `Pedido presencial creado correctamente` y el documento completo. Su ID se obtiene de `pedido._id`.
 
 Guardar email o teléfono no envía mensajes.
 
@@ -374,7 +421,7 @@ Se utiliza la fecha de Buenos Aires.
 
 En web, tortas y medialunas requieren cinco días. Las demás opciones admiten desde hoy.
 
-En presenciales, un admin puede aceptar menos de cinco días enviando confirmarAnticipacion true después de una confirmación explícita en el panel.
+En presenciales, un administrador puede aceptar menos de cinco días enviando `confirmarAnticipacion: true` después de una confirmación explícita en el panel.
 
 Las fechas pasadas se rechazan incluso con esa confirmación.
 
@@ -391,7 +438,7 @@ PUT selecciona el esquema según el origen guardado.
 
 En presencial, email y telefono deben estar presentes; uno puede estar vacío si el otro es válido.
 
-ConfirmarAnticipacion es adicional y opcional, escrito exactamente como `confirmarAnticipacion`.
+`confirmarAnticipacion` es adicional y opcional.
 
 PUT conserva cliente, ID, origen, creadoPor, estado y createdAt, cuando esos datos existen.
 
@@ -401,13 +448,19 @@ La actualización valida el documento completo antes de guardarlo.
 
 ### Estados y eliminación
 
-Estados: nuevo, pendiente, confirmado, entregado y cancelado.
+Estados admitidos:
+
+- nuevo
+- pendiente
+- confirmado
+- entregado
+- cancelado
 
 Se permite cambiar entre cualquiera de ellos mediante PATCH.
 
-DELETE elimina el documento. Usar cancelado si se necesita conservar el historial.
+DELETE elimina el documento. Utilizar `cancelado` si se necesita conservarlo.
 
-Mis-pedidos filtra por la cuenta cliente autenticada. Los presenciales sin cuenta no aparecen allí.
+`mis-pedidos` filtra por la cuenta cliente autenticada. Los presenciales sin cuenta no aparecen allí.
 
 ### Documentos antiguos
 
@@ -433,7 +486,7 @@ Todas las rutas requieren sesión administrativa activa.
 
 El CRUD gestiona cuentas admin; las cuentas cliente quedan fuera.
 
-Crear exige nombre, email y password. Se asignan rol admin y activo true.
+Crear exige nombre, email y password. Se asignan `rol: admin` y `activo: true`.
 
 Actualizar exige nombre, email y activo. Conserva contraseña y rol.
 
@@ -441,13 +494,27 @@ El backend impide que el administrador se elimine o desactive a sí mismo. Recha
 
 Las respuestas no incluyen contraseñas ni hashes.
 
-Yami documentó pruebas manuales. La verificación de Usuarios en Postman sigue pendiente.
+### Pruebas
 
-Más información en [USUARIOS.md](./USUARIOS.md).
+Yami documentó pruebas manuales de CRUD, validaciones, desactivación, reactivación y protección de la propia cuenta en [USUARIOS.md](./USUARIOS.md).
+
+El 19/10/2026 también se comprobó el CRUD local desde Postman:
+
+- Creación de una cuenta temporal.
+- Consulta por ID: 200.
+- Listado: 200.
+- Respuestas sin passwordHash.
+- Actualización: 200, conservando ID, rol, activo y createdAt.
+- Eliminación: 200.
+- Consulta posterior: 404, `Usuario no encontrado`.
+
+La cuenta temporal fue eliminada.
+
+Esta ronda de Postman no equivale a repetir todas las pruebas de seguridad documentadas por Yami ni a probar Usuarios en Render.
 
 ## Scripts
 
-Ejecutar con la API funcionando, usando cuentas y registros de prueba.
+Ejecutar con la API funcionando, utilizando cuentas y registros de prueba.
 
 | Comando | Alcance |
 |---|---|
@@ -459,15 +526,19 @@ Ejecutar con la API funcionando, usando cuentas y registros de prueba.
 | node scripts/probarAccesoPedidosEmail.js | Separación de clientes y restricciones admin. |
 | node scripts/probarPedidosPresenciales.js | Creación, edición y permisos presenciales. |
 
+Revisar la URL configurada en cada script antes de ejecutarlo. Las ejecuciones documentadas de estos scripts se realizaron contra la API local.
+
 Los scripts de CRUD web, acceso con email y presenciales ocultan las contraseñas.
 
-El script independiente probarPedidoAdmin.js conserva la entrada visible de contraseña.
+El script independiente `probarPedidoAdmin.js` conserva la entrada visible de contraseña.
 
 No compartir credenciales ni tokens.
 
-### Presenciales: verificados el 19/10/2026
+## Pruebas locales de pedidos
 
-Se ejecutaron comprobaciones aisladas de esquemas y modelo:
+### Esquemas y modelo presencial
+
+Se comprobaron:
 
 - Solo teléfono, solo email y ambos contactos.
 - Contactos ausentes o vacíos rechazados.
@@ -486,13 +557,13 @@ Validación presencial correcta: true
 
 La prueba aislada no guardó documentos.
 
-Después se ejecutó:
+### Script de presenciales
 
 ```bash
 node scripts/probarPedidosPresenciales.js
 ```
 
-| Comprobación por API | Resultado |
+| Comprobación | Resultado |
 |---|---|
 | Sin sesión o con token cliente en creación admin | 401 |
 | Sin contacto | 400 |
@@ -500,14 +571,14 @@ node scripts/probarPedidosPresenciales.js
 | Crear con teléfono y sin cuenta cliente | 201 |
 | Origen y administrador creador | Correctos |
 | Listado admin | Incluye el pedido |
-| Mis-pedidos del cliente de prueba | No incluye el presencial |
+| Mis-pedidos del cliente | No incluye el presencial |
 | PUT incompleto o sin contacto | 400 sin cambios |
 | PUT cambia teléfono por email | 200, email normalizado |
-| Datos protegidos | ID, origen, creadoPor, estado y createdAt conservados |
+| Datos protegidos | Conservados |
 | Torta para hoy sin confirmación | 400 |
 | Torta para hoy confirmada | 201 |
 | Fecha pasada confirmada | 400 |
-| Limpieza | Ambos pedidos eliminados y GET posterior 404 |
+| Limpieza | Pedidos eliminados y GET posterior 404 |
 
 Resultado:
 
@@ -518,8 +589,6 @@ Prueba de pedidos presenciales correcta: true
 El script intenta limpiar los registros creados incluso si falla. Si la limpieza no se completa, informa los IDs.
 
 ### Regresión web después de presenciales
-
-Se volvió a ejecutar:
 
 ```bash
 node scripts/probarCrudPedido.js
@@ -546,11 +615,11 @@ Prueba CRUD con email correcta: true
 
 El pedido de prueba fue eliminado.
 
-### Separación entre clientes: ronda previa
+### Separación entre clientes
 
-Antes de agregar presenciales, probarAccesoPedidosEmail.js comprobó:
+Antes de agregar presenciales, `probarAccesoPedidosEmail.js` comprobó:
 
-- Dos clientes con pedidos usando el mismo email.
+- Dos clientes con pedidos utilizando el mismo email.
 - Cada uno ve su pedido y no ve el ajeno.
 - Admin ve ambos.
 - Ambos clientes reciben 401 en las cinco rutas administrativas.
@@ -566,7 +635,7 @@ Prueba de acceso a pedidos con email correcta: true
 
 Este script completo no se volvió a ejecutar después del cambio presencial.
 
-### Validación aislada de email web
+### Email web
 
 Se comprobaron seis casos para POST y seis para PUT.
 
@@ -578,137 +647,151 @@ Resultado:
 Validación de email correcta: true
 ```
 
-### Antecedentes
+### Postman local
 
-Antes del cambio a email se verificaron CRUD de productos, autenticación de clientes, pedidos propios, separación de clientes, permisos, PUT conservando datos y DELETE seguido de 404.
+Se verificaron pedidos web con email:
 
-El script independiente probarPedidoAdmin.js obtuvo:
+- Creación autenticada: 201.
+- Consulta propia y administrativa.
+- PUT completo conservando los datos protegidos.
+- Torta sin anticipación: 400.
+- Cambio de estado: 200.
+- DELETE: 200.
+- Consulta posterior: 404.
+- Mis-pedidos final: 200 con listado vacío.
+
+También se verificaron presenciales:
+
+- Creación con teléfono: 201.
+- Consulta: 200.
+- PUT cambia teléfono por email: 200.
+- PUT sin contacto: 400.
+- Consulta posterior al rechazo sin cambios.
+- Torta para hoy sin confirmación: 400.
+- Torta para hoy con confirmación: 201.
+- Creación administrativa sin sesión o con token cliente: 401.
+- Eliminación de los pedidos temporales: 200.
+- Consultas posteriores: 404.
+
+No se afirma una ejecución completa de todas las solicitudes de la colección.
+
+## Pruebas en Render del 19/10/2026
+
+Se realizaron solicitudes manuales contra:
 
 ```text
-Validación correcta: true
+https://lara-backend-5tq4.onrender.com
 ```
 
-No se volvió a ejecutar ese script independiente en estas rondas.
-
-Los antecedentes no prueban por sí solos cambios posteriores.
-
-## Postman
-
-Colección:
-
-[Descargar colección](./postman/Lara-Pasteleria-API.postman_collection.json)
-
-| Grupo | Cantidad |
-|---|---:|
-| Autenticación administrativa y productos | 16 |
-| Pedidos | 15 |
-| Clientes y pedidos propios | 15 |
-| Usuarios | 5 |
-| Pedidos presenciales | 10 |
-| Total | 61 |
-
-Se conservaron las 51 solicitudes originales, incluida Usuarios.
-
-Las diez solicitudes presenciales fueron agregadas. Su importación y ejecución manual todavía deben comprobarse.
-
-No contiene aserciones automatizadas. El script previo calcula fechas, no verifica resultados.
-
-### Variables
-
-| Variable | Uso |
-|---|---|
-| baseUrl | http://localhost:4000 |
-| adminEmail | Email admin de prueba. |
-| adminPassword | Contraseña admin local. |
-| token | Token admin. |
-| clienteEmail | Email del primer cliente. |
-| clientePassword | Contraseña local del cliente. |
-| clienteToken | Token del primer cliente. |
-| cliente2Email | Email del segundo cliente. |
-| cliente2Password | Contraseña local del segundo cliente. |
-| cliente2Token | Token del segundo cliente. |
-| productoID | Producto de prueba. |
-| pedidoID | Pedido web de prueba. |
-| pedidoPresencialID | Pedido presencial de prueba. |
-| usuarioId | Usuario admin de prueba. |
-| passwordUsuarioPrueba | Contraseña local para ese usuario. |
-
-Respetar mayúsculas y minúsculas.
-
-Guardar tokens sin comillas ni prefijo Bearer. Las solicitudes agregan el prefijo.
-
-No exportar el entorno con credenciales ni tokens reales.
-
-### Fechas automáticas
-
-Se calculan según Buenos Aires:
-
-| Variable | Valor |
-|---|---|
-| fechaPedido | Hoy más 30 días. |
-| fechaSinAnticipacion | Hoy. |
-
-No hace falta definirlas manualmente.
-
-### Flujo presencial propuesto
-
-1. Login admin y actualizar token.
-2. Crear presencial con teléfono.
-3. Guardar pedido._id en pedidoPresencialID.
-4. Consultar y verificar el documento.
-5. Ejecutar rechazos y comprobar que no cambió.
-6. Actualizar con email y teléfono vacío.
-7. Verificar normalización y datos conservados.
-8. Eliminar y consultar nuevamente: 404.
-9. Probar por separado el pedido para hoy confirmado.
-10. Actualizar pedidoPresencialID con el nuevo ID.
-11. Eliminar también ese pedido y comprobar el 404.
-
-No ejecutar toda la colección sin revisar el orden y los registros afectados.
-
-### Resultados web anteriores en Postman
-
-El 19/10/2026, antes de incorporar presenciales, se verificaron:
+### Acceso y consultas
 
 | Caso | Resultado |
 |---|---|
-| Login cliente y admin | 200 |
-| Crear pedido con email | 201 y estado nuevo |
-| Mis-pedidos | 200, email y vínculo correctos |
-| Fecha automática válida | 2026-11-18 |
-| PUT administrativo | 200 |
-| Conservación | ID, cliente, estado nuevo y createdAt |
-| Torta sin anticipación | 400 |
-| Cambiar estado | 200, pendiente |
-| DELETE | 200 |
-| Consulta posterior por ID | 404 |
-| Mis-pedidos final | 200, listado vacío |
+| Health | 200 y ok true. |
+| Productos públicos | 200. |
+| Login administrativo | 200. |
+| Productos administrativos con sesión admin | 200. |
+| Productos administrativos sin sesión | 401. |
+| Login cliente | 200. |
+| Mis-pedidos con sesión cliente | 200. |
+| Productos administrativos con token cliente | 401. |
 
-El PUT manual mantuvo el mismo email; su modificación y normalización se comprobaron por script.
+### Pedido web temporal
 
-El pedido fue eliminado.
+| Caso | Resultado |
+|---|---|
+| Creación autenticada | 201 y estado nuevo. |
+| Mis-pedidos | Incluye el pedido y el vínculo con el cliente. |
+| Consulta administrativa por ID | Documento correcto. |
+| PATCH de estado | 200, estado pendiente. |
+| PUT completo | 200, datos actualizados. |
+| Conservación con PUT | Cliente, ID, origen, estado y createdAt. |
+| DELETE | 200. |
+| Consulta posterior por ID | 404. |
+| Mis-pedidos final | 200 con listado vacío. |
 
-No implica una nueva ejecución de las 61 solicitudes.
+El pedido temporal fue eliminado.
 
-### Usuarios en Postman
+### Pedido presencial temporal
 
-Las cinco solicitudes de Yami se conservan. Su verificación sigue pendiente.
+Se recibió una respuesta de creación correcta y se comprobó:
 
-Flujo propuesto:
+| Caso | Resultado |
+|---|---|
+| Creación con teléfono y sin email | Documento con origen presencial y creadoPor del admin. |
+| Vínculo cliente | Sin cuenta cliente asociada. |
+| Consulta administrativa | 200. |
+| PUT cambia teléfono por email | 200. |
+| Datos protegidos | ID, origen, creadoPor, estado y createdAt conservados. |
+| DELETE | 200. |
+| Consulta posterior | 404. |
 
-1. Login admin y actualizar token.
-2. Configurar passwordUsuarioPrueba.
-3. Crear usuario y guardar usuarioId.
-4. Listar y consultar por ID.
-5. Actualizar y verificar los datos conservados.
-6. Eliminar usando otra cuenta admin.
-7. Consultar nuevamente: 404.
+El pedido temporal fue eliminado.
 
-Seguir las validaciones de USUARIOS.md.
+### Tiempos observados
 
-## Autenticación y límites: resultados previos
+Se observaron demoras de aproximadamente 42 y 52 segundos en solicitudes anteriores, además de un error de protocolo HTTP/2 en Postman. No se confirmó su causa.
 
-| Caso | Resultado verificado |
+En comprobaciones posteriores:
+
+| Solicitud | Tiempo observado |
+|---|---|
+| Health | 189 ms. |
+| Health repetido | 495 ms. |
+| Productos públicos, con consulta a MongoDB | 335 ms. |
+
+Son mediciones puntuales. No representan una prueba de carga ni garantizan esos tiempos para todas las solicitudes.
+
+## Manejo de errores
+
+Comprobaciones locales:
+
+| Caso | Resultado |
+|---|---|
+| JSON mal formado | 400 con mensaje específico. |
+| Cuerpo superior al límite de 100kb | 413 con mensaje específico. |
+| Ruta inexistente | 404. |
+
+Ejemplo de JSON mal formado:
+
+```bash
+curl --max-time 10 -i http://localhost:4000/api/clientes/login \
+  -H "Content-Type: application/json" \
+  --data-binary '{"email":'
+```
+
+Respuesta:
+
+```json
+{
+  "message": "El JSON enviado no tiene un formato válido"
+}
+```
+
+Ejemplo de cuerpo demasiado grande:
+
+```bash
+python3 -c 'import json; print(json.dumps({"email": "a" * 110000}))' \
+  | curl --max-time 10 -i http://localhost:4000/api/clientes/login \
+      -H "Content-Type: application/json" \
+      --data-binary @-
+```
+
+Respuesta:
+
+```json
+{
+  "message": "Los datos enviados superan el tamaño permitido"
+}
+```
+
+Estas comprobaciones no crearon cuentas ni pedidos.
+
+## Autenticación y límites
+
+### Resultados locales verificados
+
+| Caso | Resultado |
 |---|---|
 | Login admin con contraseña incorrecta | 401 |
 | Login admin con email inexistente | 401 |
@@ -721,8 +804,8 @@ Seguir las validaciones de USUARIOS.md.
 | Límite de registro | 429 |
 | Límite de login cliente | 429 |
 | Límite de login admin | 429 |
-
-Son comprobaciones anteriores a la ronda de pedidos presenciales.
+| Límite de creación web | 429 |
+| Creación web después de terminar el bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado en la prueba. |
 
 ### Configuración
 
@@ -735,15 +818,112 @@ Son comprobaciones anteriores a la ronda de pedidos presenciales.
 
 La creación administrativa no utiliza el limitador de pedidos web.
 
-Se observaron respuestas 429 en registro y login, pero no se midió el umbral exacto desde una ventana vacía.
+En la prueba de creación web se enviaron cuerpos vacíos con sesión cliente válida. Las solicitudes fueron rechazadas por validación con 400 hasta observar el bloqueo con 429.
 
-Siguen pendientes el límite de creación web, la recuperación después de bloqueos y otros escenarios concretos de autenticación.
+Después de la ventana de bloqueo, sin reiniciar el servidor durante la espera, la misma solicitud volvió a responder 400 por validación. No creó pedidos.
+
+No se midieron todos los umbrales desde ventanas vacías.
+
+Siguen pendientes:
+
+- Recuperación después del bloqueo de registro y ambos logins.
+- Verificación del rate limiting detrás del proxy de Render.
+- Otros escenarios de autenticación que se definan expresamente.
 
 Ejecutar pruebas de límites al final para evitar bloqueos durante las pruebas funcionales.
 
+## Postman
+
+Colección versionada:
+
+[Descargar colección](./postman/Lara-Pasteleria-API.postman_collection.json)
+
+La última versión contabilizada contiene:
+
+| Grupo | Cantidad |
+|---|---:|
+| Autenticación administrativa y productos | 16 |
+| Pedidos | 15 |
+| Clientes y pedidos propios | 15 |
+| Usuarios | 5 |
+| Pedidos presenciales | 10 |
+| Total | 61 |
+
+Se conservaron las 51 solicitudes originales, incluida la carpeta Usuarios, y se agregaron diez solicitudes presenciales.
+
+Durante las pruebas se utilizaron también solicitudes modificadas manualmente en Postman. Antes de la entrega debe revisarse la exportación final, incorporar las consultas administrativas de productos y volver a contar las solicitudes.
+
+No contiene aserciones automatizadas. El script previo calcula fechas; no verifica resultados.
+
+### Entornos
+
+Se utilizaron entornos separados:
+
+| Entorno | baseUrl |
+|---|---|
+| Lara Local | http://localhost:4000 |
+| Lara Render | https://lara-backend-5tq4.onrender.com |
+
+`baseUrl` no lleva `/api` al final porque las solicitudes agregan ese segmento.
+
+### Variables
+
+| Variable | Uso |
+|---|---|
+| baseUrl | Dirección de la API según el entorno. |
+| adminEmail | Email admin de prueba. |
+| adminPassword | Contraseña privada del admin. |
+| token | Token admin. |
+| clienteEmail | Email del primer cliente. |
+| clientePassword | Contraseña privada del cliente. |
+| clienteToken | Token del primer cliente. |
+| cliente2Email | Email del segundo cliente. |
+| cliente2Password | Contraseña privada del segundo cliente. |
+| cliente2Token | Token del segundo cliente. |
+| productoID | Producto de prueba. |
+| pedidoID | Pedido web de prueba. |
+| pedidoPresencialID | Pedido presencial de prueba. |
+| usuarioId | Usuario admin de prueba. |
+| passwordUsuarioPrueba | Contraseña privada de ese usuario. |
+
+Respetar mayúsculas y minúsculas.
+
+Guardar los tokens sin comillas ni prefijo Bearer. Las solicitudes agregan el prefijo.
+
+No exportar entornos con credenciales ni tokens reales. No guardar respuestas de login con tokens reales dentro de la colección compartida.
+
+### Fechas automáticas
+
+Se calculan según Buenos Aires:
+
+| Variable | Valor |
+|---|---|
+| fechaPedido | Hoy más 30 días. |
+| fechaSinAnticipacion | Hoy. |
+
+Las fechas fijas utilizadas en pruebas anteriores no deben reutilizarse sin revisar la anticipación.
+
+### Orden y limpieza
+
+- Iniciar sesión y actualizar el token correspondiente.
+- Crear únicamente registros de prueba identificables.
+- Guardar sus IDs en las variables correspondientes.
+- Ejecutar consultas, modificaciones y rechazos.
+- Comprobar que los rechazos no alteraron los registros.
+- Eliminar los registros temporales.
+- Verificar 404 y ausencia en los listados correspondientes.
+
+No ejecutar toda la colección sin revisar el orden y los registros afectados.
+
 ## Coordinación con el frontend
 
-Yami trabaja en lara-pasteleria.
+Para el panel de productos:
+
+- Listado completo: GET /api/productos/admin.
+- Consulta por ID: GET /api/productos/admin/:id.
+- Ambas consultas requieren token admin.
+- Las escrituras conservan /api/productos y /api/productos/:id.
+- El catálogo público solo muestra disponibles.
 
 Para pedidos presenciales:
 
@@ -757,9 +937,9 @@ Para pedidos presenciales:
 - Cambiar estado mediante PATCH.
 - No enviar campos protegidos mediante POST o PUT.
 
-La conexión y edición desde el panel todavía deben probarse.
-
 El flujo web conserva sus campos y autenticación actuales.
+
+La conexión completa de las pantallas publicadas debe comprobarse junto con Yami.
 
 ## Organización
 
@@ -781,7 +961,7 @@ src/
 |---|---|
 | postman | Colección de solicitudes. |
 | scripts | Creación de cuentas y pruebas. |
-| config | MongoDB. |
+| config | Conexión a MongoDB. |
 | controllers | Respuestas HTTP. |
 | middlewares | Autenticación, validación y errores. |
 | models | Documentos. |
@@ -806,24 +986,25 @@ Revisar cambios, crear commit, subir la rama y abrir PR hacia main.
 
 Integraciones confirmadas:
 
-- PR #16: pedidos con email, commit de merge 804fb8f.
-- PR #17: documentación de pruebas locales para deploy, commit 56db427.
-
-Pedidos presenciales se está preparando en feat/pedidos-presenciales. No se presenta como integrado hasta completar su PR.
+| PR | Cambio | Commit de merge |
+|---|---|---|
+| #16 | Pedidos con email y pruebas. | 804fb8f |
+| #17 | Pruebas locales de preparación para deploy. | 56db427 |
+| #18 | Pedidos presenciales desde administración. | e58d5db |
+| #19 | Filtro público de productos y consultas administrativas. | e3a4f25 |
+| #20 | Configuración de CORS y proxy para Render. | 92a364c |
 
 ## Pendientes
 
-- Importar y comprobar la colección actualizada de 61 solicitudes.
-- Revisar e integrar pedidos presenciales mediante PR.
-- Conectar y probar el formulario presencial del panel.
-- Verificar Usuarios en Postman.
-- Completar escenarios pendientes de autenticación.
-- Verificar límite de creación web y recuperación después de bloqueos.
-- Resolver filtrado de productos no disponibles coordinando el panel.
-- Conservar Usuarios y la colección completa al exportar.
-- Completar las pantallas del frontend con Yami.
-- Confirmar hosting y URLs definitivas.
-- Confirmar versiones de Node.js y pnpm en hosting.
-- Configurar variables, CORS definitivo, Atlas y proxy.
-- Desplegar y probar la integración publicada.
-- Documentar URLs y resultados finales.
+- Confirmar la configuración de VITE_API_URL con Yami.
+- Probar los flujos desde el frontend publicado.
+- Verificar el rate limiting detrás del proxy de Render.
+- Comprobar la recuperación después del bloqueo de registro y ambos logins.
+- Revisar y exportar la colección final de Postman.
+- Conservar las carpetas Usuarios y Pedidos presenciales al exportar.
+- Incorporar las consultas administrativas de productos a la colección.
+- Actualizar PEDIDOS.md y registrar la verificación local de Usuarios.
+- Completar y comprobar las pantallas del frontend con Yami.
+- Revisar la documentación final y los archivos de entrega.
+
+Las pruebas locales, las pruebas manuales en Render y la integración desde el frontend se documentan por separado. Un resultado anterior no prueba automáticamente un cambio posterior.
