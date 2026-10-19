@@ -9,12 +9,20 @@ import { manejarErrores } from './middlewares/manejarErrores.js'
 
 const app = express()
 
+if (process.env.RENDER === 'true') {
+  app.set('trust proxy', 1)
+}
+
+const frontendURL = process.env.FRONTEND_URL?.trim().replace(/\/+$/, '')
+
+const origenesPermitidos = [
+  'http://localhost:5173',
+  ...(frontendURL ? [frontendURL] : []),
+]
+
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173',
-      process.env.FRONTEND_URL || 'https://lara-pasteleria.vercel.app',
-    ],
+    origin: origenesPermitidos,
   })
 )
 
