@@ -229,6 +229,8 @@ La respuesta incluye el mensaje `Estado del pedido actualizado correctamente` y 
 
 El cliente puede consultar el nuevo estado desde `mis-pedidos`.
 
+Un estado no admitido responde 400. Se verificó que enviar `inventado` conserva el estado anterior del pedido.
+
 ### Eliminar
 
 `DELETE /api/pedidos/:id`
@@ -336,13 +338,59 @@ Para repetir el flujo después del DELETE, crear un pedido nuevo y actualizar `p
 
 El pedido utilizado en estas pruebas ya fue eliminado.
 
-Las comprobaciones de estado inválido, PUT incompleto, listado sin token e ID inválido no se repitieron en la última ronda de PUT y DELETE. No deben interpretarse como resultados nuevos.
+Las pruebas adicionales con scripts se detallan a continuación. No implican que se haya vuelto a ejecutar toda la colección de Postman.
 
-## Scripts de prueba pendientes de revisión
+## Pruebas con scripts
 
-Los siguientes scripts existían antes de integrar la autenticación de clientes. No se verificaron nuevamente tras ese cambio.
+Ambos scripts se ejecutaron correctamente después de integrar clientes.
 
-Antes de reutilizarlos, revisar sus solicitudes y adaptar las que crean pedidos para usar una sesión de cliente.
+Con `pnpm dev` funcionando, ejecutar los scripts desde otra terminal, dentro de `lara-backend`.
+
+Usar cuentas y pedidos de prueba. Las operaciones se realizan sobre la base configurada en el servidor.
+
+Los scripts no imprimen el token. Las contraseñas se ven mientras se escriben: no compartir credenciales en capturas ni mensajes.
+
+### Probar PUT y DELETE con clientes
+
+```bash
+node scripts/probarCrudPedido.js
+```
+
+Solicita primero las credenciales de una cuenta administradora y después las de una cuenta cliente existente.
+
+Crea un pedido con la sesión de cliente y utiliza la sesión administrativa para actualizarlo y eliminarlo.
+
+Comprueba mediante aserciones:
+
+- Creación como cliente: HTTP 201 y estado `nuevo`.
+- El pedido aparece en `mis-pedidos` vinculado a la cuenta autenticada.
+- El administrador puede cambiar el estado a `pendiente`.
+- PUT incompleto responde 400 y no modifica el pedido.
+- PUT completo guarda los siete campos.
+- Se conservan cliente, ID, estado y `createdAt`.
+- El cliente ve los datos actualizados en `mis-pedidos`.
+- DELETE administrativo responde 200.
+- La consulta posterior por ID responde 404.
+- El pedido eliminado deja de aparecer en `mis-pedidos`.
+
+Resultado verificado:
+
+```text
+Creación como cliente: correcta
+Pedido vinculado al cliente y visible en mis-pedidos: correcto
+PUT incompleto: 400 sin modificar el pedido
+PUT completo: datos guardados correctamente
+Cliente, ID, estado y fecha de creación conservados
+El cliente ve los datos actualizados: correcto
+DELETE como administrador: correcto
+Consulta por ID después de eliminar: 404
+El pedido eliminado ya no aparece en mis-pedidos
+Prueba correcta: true
+```
+
+El script elimina el pedido que crea. Si ocurre un error antes de eliminarlo, intenta retirarlo al finalizar. Si la limpieza falla, informa el ID para revisarlo.
+
+Una comprobación fallida establece un código de salida distinto de cero.
 
 ### Validar un estado inválido
 
@@ -350,26 +398,22 @@ Antes de reutilizarlos, revisar sus solicitudes y adaptar las que crean pedidos 
 node scripts/probarPedidoAdmin.js
 ```
 
-La prueba original solicita credenciales administrativas y el ID de un pedido existente.
+Solicita credenciales administrativas y el ID de un pedido de prueba existente.
 
-Su objetivo es comprobar que un estado inválido responda 400 y que el estado guardado se conserve.
+Envía el estado `inventado` y comprueba que la API responda 400 y que el estado guardado se conserve.
 
-### Probar PUT y DELETE
+Resultado verificado:
 
-```bash
-node scripts/probarCrudPedido.js
+```text
+Estado antes: nuevo
+Estado inválido HTTP: 400
+Mensaje: Los datos enviados no son válidos
+Estado después: nuevo
+Validación correcta: true
 ```
 
-La prueba original crea un pedido y comprueba:
+Este script no crea ni elimina pedidos.
 
-- PUT incompleto responde 400.
-- PUT completo guarda los datos.
-- El estado, el ID y la fecha de creación se conservan.
-- DELETE elimina el pedido.
-- Consultarlo después responde 404.
+Para ejecutarlo, crear previamente un pedido con una sesión de cliente. Al terminar, eliminar ese pedido de prueba desde Postman con una sesión administrativa.
 
-Debe adaptarse para crear el pedido con un token de cliente y verificar también la conservación del vínculo y la consulta de pedidos propios.
-
-El script incluye una limpieza del pedido de prueba. Después de adaptarlo, comprobar también ese comportamiento y revisar cualquier ID informado si la limpieza falla.
-
-Los scripts no imprimen el token. La contraseña se ve mientras se escribe: no compartir credenciales en capturas ni mensajes.
+El pedido utilizado para esta comprobación se eliminó desde Postman con respuesta HTTP 200.

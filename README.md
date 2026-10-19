@@ -269,9 +269,11 @@ Los siete campos del formulario son:
 - cantidadPersonas
 - detalles
 
-PUT exige los siete campos y conserva el vínculo con el cliente, el estado, el ID y la fecha de creación. La conservación de estos datos se verificó manualmente después de integrar clientes. El cliente también pudo consultar los datos actualizados desde `mis-pedidos`.
+PUT exige los siete campos y conserva el vínculo con el cliente, el estado, el ID y la fecha de creación. La conservación de estos datos se verificó después de integrar clientes, tanto manualmente como con el script de CRUD. El cliente también pudo consultar los datos actualizados desde `mis-pedidos`.
 
 Los estados admitidos son `nuevo`, `pendiente`, `confirmado`, `entregado` y `cancelado`.
+
+Se verificó que enviar un estado inválido responde 400 y conserva el estado anterior.
 
 DELETE elimina el registro; usar el estado `cancelado` cuando se quiera conservar el historial.
 
@@ -287,11 +289,9 @@ El backend toma el ID del cliente desde la sesión, no desde el cuerpo enviado.
 
 Los pedidos antiguos pueden no tener un cliente vinculado.
 
-La documentación adicional está en [PEDIDOS.md](./PEDIDOS.md). Ese documento debe revisarse para actualizar las referencias al antiguo acceso público de creación.
+La documentación adicional está en [PEDIDOS.md](./PEDIDOS.md), actualizada al acceso autenticado de clientes.
 
-## Pruebas manuales con scripts
-
-Los scripts existentes se enumeran como referencia. Los que crean pedidos deben revisarse y adaptarse al nuevo requisito de autenticación de cliente antes de reutilizarlos; no se verificaron nuevamente tras ese cambio.
+## Pruebas con scripts
 
 Con el servidor funcionando, ejecutar en otra terminal:
 
@@ -301,11 +301,68 @@ Con el servidor funcionando, ejecutar en otra terminal:
 | `node scripts/probarAccesoAdmin.js` | Crear y eliminar un producto con acceso admin. |
 | `node scripts/probarPutProducto.js` | PUT completo e incompleto de productos. |
 | `node scripts/probarPedidoAdmin.js` | Rechazo de un estado inválido en un pedido existente. |
-| `node scripts/probarCrudPedido.js` | PUT y DELETE de un pedido de prueba. |
+| `node scripts/probarCrudPedido.js` | Creación como cliente, PUT y DELETE administrativos y consulta de pedidos propios. |
+
+Los dos scripts de pedidos se ejecutaron correctamente después de integrar clientes.
+
+### CRUD de pedidos con clientes
+
+```bash
+node scripts/probarCrudPedido.js
+```
+
+Solicita credenciales de una cuenta administradora y de una cuenta cliente existente.
+
+Verifica mediante aserciones:
+
+- Creación como cliente: 201 y estado `nuevo`.
+- Vínculo con el cliente y presencia en `mis-pedidos`.
+- Cambio administrativo a `pendiente`.
+- PUT incompleto: 400 sin modificar el registro.
+- PUT completo: guarda los siete campos.
+- Conservación de cliente, ID, estado y `createdAt`.
+- Visibilidad de los datos actualizados para el cliente.
+- DELETE administrativo: 200.
+- Consulta posterior por ID: 404.
+- Ausencia del pedido eliminado en `mis-pedidos`.
+
+Resultado obtenido:
+
+```text
+Prueba correcta: true
+```
+
+El script crea y elimina su propio pedido de prueba. Si falla antes de eliminarlo, intenta retirarlo al finalizar. Si la limpieza falla, informa el ID para revisarlo.
+
+Las comprobaciones fallidas establecen un código de salida distinto de cero.
+
+### Estado inválido
+
+```bash
+node scripts/probarPedidoAdmin.js
+```
+
+Solicita credenciales administrativas y el ID de un pedido de prueba existente, creado previamente con una sesión de cliente.
+
+Resultado obtenido:
+
+```text
+Estado antes: nuevo
+Estado inválido HTTP: 400
+Mensaje: Los datos enviados no son válidos
+Estado después: nuevo
+Validación correcta: true
+```
+
+Este script no crea ni elimina pedidos. El pedido usado en esta comprobación se eliminó después desde Postman con respuesta 200.
+
+### Consideraciones de los scripts
 
 Los scripts piden credenciales y no imprimen el token. Las contraseñas se ven al escribirlas; no compartirlas en capturas ni mensajes.
 
-Las pruebas usan la base configurada en `.env`. Los scripts que crean registros de prueba intentan eliminarlos al terminar. Si la limpieza falla, revisá el ID informado.
+Las pruebas usan la base configurada en el servidor mediante `.env`. Usar cuentas y registros de prueba.
+
+Los resultados de los scripts de pedidos no implican una nueva ejecución de los otros scripts ni de toda la colección de Postman.
 
 ## Pruebas con Postman
 
@@ -414,9 +471,11 @@ La solicitud `Consultar producto inexistente` conserva el ID de un producto de p
 - Consulta administrativa por ID después del DELETE: 404 con el mensaje `Pedido no encontrado`.
 - Consulta de pedidos propios después del DELETE: 200 con `pedidos: []`.
 
-El pedido de prueba utilizado en esta integración ya fue eliminado. Para repetir el flujo, crear un pedido nuevo y actualizar la variable `pedidoID`.
+Además, mediante los scripts se verificaron PUT incompleto sin modificaciones, PUT completo, conservación del vínculo, consulta de datos actualizados, DELETE y rechazo de un estado inválido.
 
-Las comprobaciones de estado inválido, PUT incompleto, listado sin token e ID inválido no se repitieron en esta última ronda. Los pasos de ejecución describen cómo probarlas; no deben interpretarse como resultados nuevos.
+Los pedidos utilizados en estas pruebas ya fueron eliminados. Para repetir el flujo, crear un pedido nuevo y actualizar la variable `pedidoID`.
+
+El listado administrativo sin token y el ID inválido no se repitieron en estas últimas rondas. Los pasos de ejecución describen cómo probarlos; no deben interpretarse como resultados nuevos.
 
 ### Ejecución manual de usuarios
 
@@ -493,7 +552,6 @@ Coordiná los archivos que vas a modificar con la otra integrante.
 ## Pendientes para la entrega
 
 - Completar la verificación de usuarios en Postman y los casos adicionales de autenticación y rate limiting.
-- Revisar los scripts de pedidos y PEDIDOS.md para adaptarlos al acceso de clientes.
 - Mantener sincronizada la colección completa en Postman, incluida la carpeta Usuarios.
 - Actualizar la documentación con los casos que se incorporen.
 - Integrar la landing y el panel de administración, a cargo de Yami.
