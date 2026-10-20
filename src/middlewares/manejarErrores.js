@@ -7,6 +7,30 @@ export function manejarErrores(error, req, res, next) {
     res.set('Cache-Control', 'no-store')
   }
 
+  if (error.name === 'MulterError') {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        message: 'La imagen no puede superar los 5 MB',
+      })
+    }
+
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        message: 'Solo podés subir una imagen por solicitud',
+      })
+    }
+
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        message: 'Enviá una sola imagen en el campo imagen',
+      })
+    }
+
+    return res.status(400).json({
+      message: 'No se pudo recibir el archivo. Revisá los campos del formulario',
+    })
+  }
+
   if (error.type === 'entity.parse.failed') {
     return res.status(400).json({
       message: 'El JSON enviado no tiene un formato válido',
