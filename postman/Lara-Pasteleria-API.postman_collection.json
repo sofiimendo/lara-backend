@@ -2110,6 +2110,72 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Productos administrativos",
+      "item": [
+        {
+          "name": "Listar productos como administrador",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "description": "Requiere sesión admin. Permite consultar productos disponibles y no disponibles. Resultado esperado: 200; por ID inexistente: 404.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar producto por ID como administrador",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "description": "Requiere sesión admin. Permite consultar productos disponibles y no disponibles. Resultado esperado: 200; por ID inexistente: 404.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/admin/{{productoID}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "admin",
+                "{{productoID}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "event": [
