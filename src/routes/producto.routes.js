@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import * as productoController from '../controllers/producto.controller.js'
+import * as imagenController from '../controllers/imagen.controller.js'
 import { validarBody } from '../middlewares/validarBody.js'
 import { autenticar, soloAdmin } from '../middlewares/autenticar.js'
+import subirImagen from '../middlewares/subirImagen.js'
 import {
   crearProductoSchema,
   reemplazarProductoSchema,
@@ -27,6 +29,14 @@ router.get(
 router.get('/', productoController.listarProductos)
 
 router.get('/:id', productoController.obtenerProducto)
+
+router.post(
+  '/imagen',
+  autenticar,
+  soloAdmin,
+  subirImagen.single('imagen'),
+  imagenController.subirImagen
+)
 
 router.post(
   '/',
