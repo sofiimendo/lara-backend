@@ -2176,6 +2176,515 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Imágenes de productos",
+      "description": "Pruebas manuales verificadas en Render. Seleccionar los archivos localmente antes de enviar las solicitudes que los requieren. Los archivos no están incluidos en esta colección.",
+      "item": [
+        {
+          "name": "Subir imagen válida como administrador",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 201. Seleccionar un JPG, PNG o WebP válido de hasta 5 MB en el campo imagen. La respuesta contiene imagen.url e imagen.publicId. No crea un producto. No configurar Content-Type manualmente.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "imagen",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar subida sin archivo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 400. Mensaje: Seleccioná una imagen para subir. Enviar sin archivo con token admin vigente.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar imagen mayor a 5 MB",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 413. Mensaje: La imagen no puede superar los 5 MB. Seleccionar una imagen válida mayor a 5 × 1024 × 1024 bytes. No configurar Content-Type manualmente.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "imagen",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar formato no permitido",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 400. Seleccionar un archivo pequeño de formato no permitido, por ejemplo README.md. Mensaje: Formato no permitido. Seleccioná una imagen JPG, PNG o WebP.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "imagen",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar subida sin sesión",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Esperado: 401. Mensaje: Debés iniciar sesión para continuar. La autenticación se evalúa antes de recibir el archivo.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar subida con token vigente de cliente",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clienteToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 401 por audiencia administrativa. El mensaje puede ser Token inválido o vencido. Antes, comprobar que el mismo clienteToken responda 200 en GET /api/pedidos/mis-pedidos. No confundir este rechazo con vencimiento.",
+            "url": {
+              "raw": "{{baseUrl}}/api/productos/imagen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "productos",
+                "imagen"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Contraseñas mínimo 8",
+      "description": "Pruebas manuales verificadas en Render para el mínimo de 8 caracteres. Variables privadas: clienteMinimo8Email, adminMinimo8Email y passwordMinimo8. Variable de limpieza: usuarioMinimo8Id. No ejecutar toda la carpeta sin revisar cuentas y limpieza.",
+      "item": [
+        {
+          "name": "Rechazar registro cliente con 7 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Esperado: 400 en password: La contraseña debe tener al menos 8 caracteres. No debe crear una cuenta.",
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Prueba rechazo contraseña\",\n  \"email\": \"{{clienteMinimo8Email}}\",\n  \"password\": \"Abc123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar cliente con 8 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Esperado: 201 con un email de prueba no registrado. Configurar passwordMinimo8 de forma privada con exactamente 8 caracteres. CREA UNA CUENTA CLIENTE. La API actual no tiene DELETE de clientes; coordinar su limpieza en MongoDB Atlas. No repetir innecesariamente.",
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/registro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "registro"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Prueba contraseña 8\",\n  \"email\": \"{{clienteMinimo8Email}}\",\n  \"password\": \"{{passwordMinimo8}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login cliente con contraseña de 8 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Esperado: 200 para la cuenta creada. No guardar respuestas con tokens reales en la colección compartida.",
+            "url": {
+              "raw": "{{baseUrl}}/api/clientes/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "clientes",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clienteMinimo8Email}}\",\n  \"password\": \"{{passwordMinimo8}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rechazar creación admin con 7 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 400 en password con sesión admin vigente. No debe crear una cuenta.",
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Prueba rechazo contraseña\",\n  \"email\": \"{{adminMinimo8Email}}\",\n  \"password\": \"Abc123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear administrador con 8 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 201 con email de prueba no registrado. Configurar passwordMinimo8 de forma privada con exactamente 8 caracteres. Guardar usuario._id en usuarioMinimo8Id. Conservar token con la sesión del administrador habitual para limpiar.",
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Admin prueba contraseña 8\",\n  \"email\": \"{{adminMinimo8Email}}\",\n  \"password\": \"{{passwordMinimo8}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login administrador con contraseña de 8 caracteres",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Esperado: 200. No sobrescribir token con esta sesión temporal: se necesita el administrador habitual para eliminar esta cuenta. No guardar respuestas con tokens reales.",
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminMinimo8Email}}\",\n  \"password\": \"{{passwordMinimo8}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar administrador temporal de contraseña",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado: 200. Usar el token del administrador habitual. Eliminar únicamente la cuenta temporal de esta ronda.",
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioMinimo8Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "{{usuarioMinimo8Id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirmar eliminación del administrador temporal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Esperado después de eliminar: 404, Usuario no encontrado.",
+            "url": {
+              "raw": "{{baseUrl}}/api/usuarios/{{usuarioMinimo8Id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usuarios",
+                "{{usuarioMinimo8Id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "event": [
