@@ -188,6 +188,18 @@ En desarrollo, el frontend utiliza `http://localhost:4000` cuando no tiene confi
 
 El frontend dispone de una configuración de reescritura en Vercel para que las rutas de React puedan abrirse directamente.
 
+### Funcionamiento independiente de la computadora de desarrollo
+
+La versión publicada utiliza los servicios de Vercel, Render, MongoDB Atlas y Cloudinary.
+
+El backend publicado se ejecuta en Render y establece su propia conexión a MongoDB Atlas. No utiliza el proceso de Node.js iniciado en la computadora de desarrollo.
+
+Lara debe utilizar la dirección pública del frontend.
+
+Las direcciones `localhost` corresponden únicamente al desarrollo local.
+
+Queda pendiente realizar y registrar una comprobación con los procesos locales detenidos y desde otro dispositivo, además de definir el alojamiento adecuado para el uso cotidiano de Lara.
+
 ## CORS
 
 La configuración permite:
@@ -243,9 +255,9 @@ node scripts/crearAdmin.js
 
 El script utiliza `ADMIN_NOMBRE`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` configurados localmente.
 
-La contraseña requiere al menos 12 caracteres y como máximo 72 bytes UTF-8.
+La contraseña requiere al menos 8 caracteres y como máximo 72 bytes UTF-8.
 
-Se guarda un hash bcrypt. Si el email existe, no se reemplaza la cuenta.
+Se guarda un hash bcrypt con costo 12. Si el email existe, no se reemplaza la cuenta.
 
 Después de crearla, retirar las variables temporales `ADMIN_*` del entorno.
 
@@ -263,7 +275,7 @@ No existe recuperación de contraseña ni envío automático de correos.
 
 El registro de clientes exige nombre, email y password. Asigna `rol: cliente` y `activo: true`.
 
-Las contraseñas se guardan como hashes bcrypt y requieren al menos 12 caracteres y un máximo de 72 bytes UTF-8.
+Las contraseñas se guardan como hashes bcrypt y requieren al menos 8 caracteres y un máximo de 72 bytes UTF-8.
 
 El login administrativo solo admite cuentas admin activas.
 
@@ -287,6 +299,37 @@ Se verifican token, audiencia, cuenta activa y rol.
 Un token cliente en una ruta administrativa responde 401 por la separación de audiencias.
 
 El mensaje `Token inválido o vencido` también puede aparecer cuando el token pertenece a una audiencia distinta. Por sí solo, el mensaje no demuestra que el token haya vencido.
+
+### Cambio del mínimo de contraseña a 8 caracteres
+
+El 21/10/2026 se actualizaron los esquemas de registro de clientes y creación de usuarios, y la validación de `scripts/crearAdmin.js`.
+
+El mínimo es de 8 caracteres y el máximo continúa siendo de 72 bytes UTF-8.
+
+El costo de bcrypt sigue siendo 12. Las contraseñas existentes no se modifican.
+
+Se ejecutaron pruebas aisladas de ambos esquemas, sin conexión a MongoDB ni creación de cuentas:
+
+| Entrada | Resultado en Clientes y Usuarios |
+|---|---|
+| 7 caracteres ASCII | Rechazada. |
+| 8 caracteres ASCII | Aceptada. |
+| 72 bytes ASCII | Aceptada. |
+| 73 bytes ASCII | Rechazada. |
+| 36 letras á, equivalentes a 72 bytes | Aceptada. |
+| 37 letras á, equivalentes a 74 bytes | Rechazada. |
+
+Resultado:
+
+```text
+Validación de contraseñas correcta
+```
+
+Estas pruebas cubren los esquemas de Clientes y Usuarios.
+
+No ejecutaron el script de creación del administrador ni prueban todavía el cambio desplegado.
+
+Los formularios del frontend deben actualizarse por separado.
 
 ## Productos
 
@@ -619,6 +662,8 @@ Todas las rutas requieren sesión administrativa activa.
 El CRUD gestiona cuentas admin; las cuentas cliente quedan fuera.
 
 Crear exige nombre, email y password. Se asignan `rol: admin` y `activo: true`.
+
+La contraseña exige al menos 8 caracteres y como máximo 72 bytes UTF-8.
 
 Actualizar exige nombre, email y activo. Conserva contraseña y rol.
 
@@ -1018,12 +1063,14 @@ Estas comprobaciones no crearon cuentas ni pedidos.
 | Registro con email duplicado | 409 |
 | Registro enviando rol | 400 |
 | Registro enviando activo | 400 |
-| Contraseña menor a 12 caracteres | 400 en password |
+| Contraseña demasiado corta con el mínimo anterior de 12 caracteres | 400 en password; prueba histórica anterior al cambio. |
 | Límite de registro | 429 |
 | Límite de login cliente | 429 |
 | Límite de login admin | 429 |
 | Límite de creación web | 429 |
 | Creación web después de terminar el bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado. |
+
+Las pruebas aisladas del nuevo mínimo de 8 caracteres están documentadas en la sección Autenticación.
 
 ### Configuración
 
@@ -1140,6 +1187,15 @@ Los archivos locales de Postman no quedan automáticamente disponibles para otra
 
 ## Coordinación con el frontend
 
+### Contraseñas
+
+- El registro de clientes y la creación de administradores deben aceptar desde 8 caracteres.
+- El máximo del backend continúa siendo 72 bytes UTF-8.
+- Actualizar las validaciones y los mensajes visibles del frontend.
+- Las cuentas existentes conservan sus contraseñas.
+
+La actualización del frontend debe realizarse por separado del despliegue del backend.
+
 ### Productos
 
 - Listado completo: GET /api/productos/admin.
@@ -1225,6 +1281,10 @@ Revisar cambios, crear commit, subir la rama y abrir PR hacia main.
 
 ## Pendientes
 
+- Verificar en Render el cambio de contraseñas después de integrarlo y desplegarlo.
+- Actualizar formularios y mensajes del frontend al mínimo de 8 caracteres.
+- Comprobar la aplicación publicada con los procesos locales detenidos y desde otro dispositivo, sin depender de la computadora de desarrollo.
+- Definir el alojamiento adecuado para el uso diario de Lara y revisar la disponibilidad del backend.
 - Comprobar la recuperación después del bloqueo de registro y ambos logins.
 - Verificar el rate limiting detrás del proxy de Render.
 - Revisar y exportar la colección final de Postman.
