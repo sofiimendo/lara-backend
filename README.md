@@ -2,7 +2,7 @@
 
 API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
 
-Incluye CRUD de productos, pedidos y usuarios, validación de datos y autenticación de administradores y clientes.
+Incluye administración de productos, pedidos y usuarios, autenticación de administradores y clientes, validaciones y carga de imágenes con Cloudinary.
 
 Admite consultas web de clientes registrados y pedidos presenciales cargados por administradores. No incluye carrito ni pagos.
 
@@ -12,19 +12,19 @@ Admite consultas web de clientes registrados y pedidos presenciales cargados por
 |---|---|
 | Backend en Render | https://lara-backend-5tq4.onrender.com |
 | Health del backend | https://lara-backend-5tq4.onrender.com/api/health |
-| Landing en Vercel | https://lara-pasteleria.vercel.app |
+| Frontend en Vercel | https://lara-pasteleria.vercel.app |
 
-La configuración de CORS para el origen de Vercel fue comprobada. La integración completa del frontend publicado con la API sigue pendiente de verificación conjunta.
+Se comprobó la comunicación entre el frontend publicado y la API mediante autenticación, gestión de productos con imágenes, pedidos y usuarios.
+
+Las pruebas realizadas se detallan más adelante. No equivalen a una prueba exhaustiva de todos los escenarios posibles.
 
 ## Repositorios
 
 | Proyecto | Uso |
 |---|---|
 | [lara-backend](https://github.com/sofiimendo/lara-backend) | API actual. |
-| [lara-pasteleria](https://github.com/sofiimendo/lara-pasteleria) | Landing y panel en React. |
-| lara-stock | Trabajo anterior de backend. |
-
-Yami trabaja en el frontend. Los cambios del backend se coordinan mediante campos y rutas compartidos.
+| [lara-pasteleria](https://github.com/sofiimendo/lara-pasteleria) | Landing y panel administrativo en React. |
+| lara-stock | Trabajo anterior de backend; no forma parte de esta integración. |
 
 ## Tecnologías
 
@@ -35,6 +35,8 @@ Yami trabaja en el frontend. Los cambios del backend se coordinan mediante campo
 - bcryptjs y jsonwebtoken.
 - express-rate-limit.
 - cors y dotenv.
+- Multer.
+- Cloudinary.
 - nodemon para desarrollo.
 - Render para alojar la API.
 - Vercel para alojar el frontend.
@@ -49,7 +51,7 @@ cd lara-backend
 pnpm install --frozen-lockfile
 ```
 
-Entorno local observado el 19/10/2026:
+Entorno local observado durante las pruebas:
 
 | Herramienta | Versión |
 |---|---|
@@ -58,20 +60,25 @@ Entorno local observado el 19/10/2026:
 
 ### Configurar el entorno
 
-Copiar `.env.example` como `.env` y completar los valores localmente.
+Crear el archivo `.env` local tomando `.env.example` como referencia.
 
 | Variable | Uso |
 |---|---|
 | PORT | Puerto HTTP; localmente 4000. |
-| MONGODB_URI | Conexión a MongoDB Atlas. |
+| MONGODB_URI | Conexión privada a MongoDB Atlas. |
 | FRONTEND_URL | Origen permitido del frontend, sin rutas. |
-| JWT_SECRET | Secreto para JWT; al menos 32 caracteres. |
+| JWT_SECRET | Secreto para JWT de al menos 32 caracteres. |
+| CLOUDINARY_CLOUD_NAME | Nombre de la cuenta de Cloudinary utilizada. |
+| CLOUDINARY_API_KEY | Clave de API de Cloudinary. |
+| CLOUDINARY_API_SECRET | Secreto de API de Cloudinary. |
 
-Cada integrante configura su propio entorno.
+Las tres variables de Cloudinary son necesarias para subir imágenes.
 
-No subir credenciales, secretos ni tokens al repositorio. Reiniciar el servidor después de modificar variables.
+Cada integrante configura su propio entorno. Las variables configuradas en Render no se copian automáticamente al entorno local.
 
-En Atlas, configurar los permisos del usuario de base de datos y el acceso de red correspondiente.
+No subir `.env`, credenciales, secretos ni tokens al repositorio. Reiniciar el servidor después de modificar variables.
+
+En MongoDB Atlas deben estar configurados el usuario de base de datos y el acceso de red correspondiente.
 
 El servidor espera la conexión a MongoDB antes de iniciar HTTP.
 
@@ -98,6 +105,8 @@ Conectado a MongoDB
 API de Lara disponible en http://localhost:4000
 ```
 
+El frontend y el backend se ejecutan en terminales separadas.
+
 ## Health
 
 ```text
@@ -119,8 +128,6 @@ Health comprueba que el servidor HTTP responde. No ejecuta una consulta a MongoD
 
 ## Despliegue en Render
 
-Configuración utilizada:
-
 | Opción | Valor |
 |---|---|
 | Repositorio | lara-backend |
@@ -139,12 +146,15 @@ Variables de producción:
 | MONGODB_URI | Valor privado configurado en Render. |
 | JWT_SECRET | Valor privado configurado en Render. |
 | FRONTEND_URL | https://lara-pasteleria.vercel.app |
+| CLOUDINARY_CLOUD_NAME | Valor configurado en Render. |
+| CLOUDINARY_API_KEY | Valor privado configurado en Render. |
+| CLOUDINARY_API_SECRET | Valor privado configurado en Render. |
 | PORT | Puerto proporcionado por Render. |
 | RENDER | Variable de la plataforma utilizada para activar la configuración del proxy. |
 
-No se incluyen los valores privados en esta documentación.
+No se incluyen credenciales ni secretos en esta documentación.
 
-MongoDB Atlas tiene habilitadas las direcciones de salida correspondientes al servicio de Render. El despliegue logró conectarse a MongoDB e iniciar la API.
+MongoDB Atlas tiene habilitado el acceso de red correspondiente al servicio. Se comprobó que el despliegue conecta a MongoDB e inicia la API.
 
 ### Proxy
 
@@ -158,11 +168,25 @@ La comprobación específica del rate limiting detrás del proxy de Render sigue
 
 ### Conexión con el frontend
 
-El backend utiliza `FRONTEND_URL` para permitir el origen del frontend.
+En Render:
 
-El frontend debe configurar `VITE_API_URL` para apuntar al backend publicado. La inclusión de `/api` en esa variable depende de cómo el frontend construya sus rutas.
+```text
+FRONTEND_URL=https://lara-pasteleria.vercel.app
+```
 
-Modificar una variable del frontend requiere volver a desplegarlo para incorporarla a la compilación.
+En Vercel:
+
+```text
+VITE_API_URL=https://lara-backend-5tq4.onrender.com
+```
+
+`VITE_API_URL` no lleva `/api` al final porque el frontend agrega ese segmento al construir las solicitudes.
+
+Modificar una variable de Vite requiere volver a compilar y desplegar el frontend.
+
+En desarrollo, el frontend utiliza `http://localhost:4000` cuando no tiene configurada `VITE_API_URL`.
+
+El frontend dispone de una configuración de reescritura en Vercel para que las rutas de React puedan abrirse directamente.
 
 ## CORS
 
@@ -177,23 +201,15 @@ No se utiliza una URL pública alternativa cuando la variable está ausente.
 
 CORS no sustituye la autenticación ni impide por sí solo solicitudes realizadas con curl o Postman.
 
-### Pruebas locales verificadas
+### Pruebas de preflight
 
 | Comprobación | Resultado |
 |---|---|
-| Preflight desde localhost:5173 | 204 con el origen permitido. |
+| Origen local permitido | 204 con Access-Control-Allow-Origin correspondiente. |
+| Origen de Vercel permitido en Render | 204 con Access-Control-Allow-Origin correspondiente. |
 | Método POST | Permitido en el preflight. |
 | Encabezados authorization y content-type | Permitidos en el preflight. |
-| Preflight desde origen ajeno | 204 sin Access-Control-Allow-Origin. |
-
-### Pruebas en Render verificadas el 19/10/2026
-
-| Comprobación | Resultado |
-|---|---|
-| Preflight desde https://lara-pasteleria.vercel.app | 204 con Access-Control-Allow-Origin correspondiente. |
-| Método POST | Permitido en el preflight. |
-| Encabezados authorization y content-type | Permitidos en el preflight. |
-| Preflight desde origen ajeno | 204 sin Access-Control-Allow-Origin. |
+| Origen ajeno | 204 sin Access-Control-Allow-Origin. |
 
 Origen permitido:
 
@@ -215,7 +231,7 @@ curl --max-time 90 -i -X OPTIONS https://lara-backend-5tq4.onrender.com/api/pedi
 
 El código 204 por sí solo no indica permiso de origen. Se debe comprobar `Access-Control-Allow-Origin`.
 
-Estas pruebas verifican el preflight. No equivalen a completar los flujos desde el navegador del frontend publicado.
+Además del preflight, se realizaron pruebas funcionales desde el frontend publicado.
 
 ## Administrador inicial
 
@@ -245,7 +261,7 @@ No existe recuperación de contraseña ni envío automático de correos.
 | POST | /api/clientes/registro | Registro de cliente. |
 | POST | /api/clientes/login | Login de cliente. |
 
-El registro exige nombre, email y password. Asigna `rol: cliente` y `activo: true`.
+El registro de clientes exige nombre, email y password. Asigna `rol: cliente` y `activo: true`.
 
 Las contraseñas se guardan como hashes bcrypt y requieren al menos 12 caracteres y un máximo de 72 bytes UTF-8.
 
@@ -268,7 +284,9 @@ Authorization: Bearer TOKEN
 
 Se verifican token, audiencia, cuenta activa y rol.
 
-Un token cliente en una ruta administrativa responde 401 por la separación de audiencias. Ese resultado no constituye una prueba de token vencido.
+Un token cliente en una ruta administrativa responde 401 por la separación de audiencias.
+
+El mensaje `Token inválido o vencido` también puede aparecer cuando el token pertenece a una audiencia distinta. Por sí solo, el mensaje no demuestra que el token haya vencido.
 
 ## Productos
 
@@ -278,6 +296,7 @@ Un token cliente en una ruta administrativa responde 401 por la separación de a
 | GET | /api/productos/admin | Listar todos. | Admin |
 | GET | /api/productos/admin/:id | Consultar cualquier producto por ID. | Admin |
 | GET | /api/productos/:id | Consultar un producto disponible. | Público |
+| POST | /api/productos/imagen | Subir una imagen a Cloudinary. | Admin |
 | POST | /api/productos | Crear. | Admin |
 | PUT | /api/productos/:id | Reemplazar datos editables. | Admin |
 | PATCH | /api/productos/:id | Actualizar parcialmente. | Admin |
@@ -298,7 +317,7 @@ PUT exige los seis campos. PATCH exige al menos un campo editable.
 
 El precio debe ser mayor o igual a cero. Se rechazan campos desconocidos.
 
-Crear responde 201. Las otras operaciones exitosas responden 200.
+Crear responde 201. Las otras operaciones exitosas del CRUD responden 200.
 
 ID inválido: 400. Producto inexistente: 404.
 
@@ -308,7 +327,7 @@ Las consultas públicas solo muestran productos con `disponible: true`.
 
 Un producto no disponible responde 404 en la consulta pública por ID, aunque exista en la base de datos.
 
-El panel debe utilizar las consultas administrativas para visualizar también los no disponibles.
+El panel utiliza las consultas administrativas para visualizar también los no disponibles.
 
 Las rutas de creación, edición y eliminación mantienen su ubicación original, sin `/admin`.
 
@@ -327,6 +346,113 @@ Se verificó con un producto temporal:
 - Consulta posterior administrativa: 404.
 
 El producto temporal fue eliminado.
+
+## Imágenes de productos
+
+### Endpoint
+
+```text
+POST /api/productos/imagen
+```
+
+Requiere un token de administrador activo.
+
+El cuerpo debe enviarse como `multipart/form-data`:
+
+| Campo | Tipo | Requisito |
+|---|---|---|
+| imagen | Archivo | Una imagen JPG, PNG o WebP de hasta 5 MB. |
+
+En Postman, seleccionar Body → form-data, escribir `imagen` como key y elegir el tipo File.
+
+Al utilizar FormData o Postman, dejar que la herramienta genere el encabezado Content-Type y su boundary.
+
+### Validación y almacenamiento
+
+- Multer recibe el archivo en memoria.
+- Se admite un archivo por solicitud.
+- El límite es de 5 × 1024 × 1024 bytes.
+- Se valida el tipo MIME permitido.
+- El servicio comprueba las firmas de JPG, PNG y WebP.
+- Cloudinary recibe la imagen en la carpeta `lara-pasteleria/productos`.
+- Se solicita limitar sus dimensiones a 1200 × 1200 y aplicar calidad y formato automáticos.
+
+La comprobación de firma complementa el filtro MIME; no equivale a analizar exhaustivamente todo el contenido del archivo.
+
+### Respuesta exitosa
+
+HTTP 201:
+
+```json
+{
+  "message": "Imagen subida correctamente",
+  "imagen": {
+    "url": "URL_HTTPS_DEVUELTA_POR_CLOUDINARY",
+    "publicId": "IDENTIFICADOR_DEVUELTO_POR_CLOUDINARY"
+  }
+}
+```
+
+Subir la imagen no crea ni modifica un producto.
+
+El frontend utiliza `imagen.url` como valor del campo `imagen` al crear o editar el producto.
+
+### Errores controlados
+
+| Caso | Código |
+|---|---|
+| Sin archivo | 400 |
+| Formato MIME no permitido | 400 |
+| Firma incompatible con el formato declarado | 400 |
+| Más de un archivo | 400 |
+| Campo de archivo inesperado | 400 |
+| Archivo mayor al límite | 413 |
+| Sin autenticación | 401 |
+| Token de cliente en la ruta administrativa | 401 |
+| Error interno inesperado | 500 |
+
+Los errores de configuración o del proveedor se diagnostican desde el servidor. No se deben exponer secretos en las respuestas ni en los registros compartidos.
+
+### Pruebas confirmadas en Render
+
+Se comprobó la subida de una imagen válida y el uso de su URL en un producto.
+
+| Comprobación | Resultado |
+|---|---|
+| Subida válida con sesión administrativa | 201. |
+| Crear producto con URL de Cloudinary | 201. |
+| Consulta pública del producto | Incluye la URL guardada. |
+| Eliminar el producto temporal | 200. |
+| Solicitud sin archivo | 400: Seleccioná una imagen para subir. |
+| Imagen superior a 5 MB | 413: La imagen no puede superar los 5 MB. |
+| Archivo README.md enviado como imagen | 400: Formato no permitido. Seleccioná una imagen JPG, PNG o WebP. |
+| Solicitud sin sesión | 401: Debés iniciar sesión para continuar. |
+| Solicitud con token vigente de cliente | 401: Token inválido o vencido. |
+| Mismo token cliente en mis-pedidos | 200, confirmando que estaba vigente. |
+
+La última comprobación permite distinguir el rechazo por audiencia administrativa de un token realmente vencido.
+
+No se afirma haber probado manualmente en producción todos los errores contemplados por el código.
+
+### Uso desde el frontend publicado
+
+Se comprobó:
+
+- Crear un producto con una fotografía.
+- Editar el nombre, el precio y la fotografía.
+- Recargar y verificar la persistencia de los cambios.
+- Eliminar el producto temporal y comprobar su ausencia.
+- Rechazar desde el formulario una imagen superior a 5 MB.
+
+El selector del navegador puede ocultar formatos no admitidos. Ese filtro visual no reemplaza las validaciones del backend.
+
+### Eliminación de imágenes
+
+Eliminar un producto de MongoDB no elimina automáticamente su imagen de Cloudinary.
+
+Reemplazar una fotografía tampoco garantiza la eliminación de la imagen anterior.
+
+La limpieza de imágenes sin uso queda pendiente.
 
 ## Pedidos
 
@@ -378,7 +504,9 @@ Exige nombre, fecha, pedido y al menos un contacto válido: email o telefono.
 
 Email o telefono pueden omitirse individualmente; se normalizan a texto vacío. Si se completan ambos, ambos deben ser válidos.
 
-El teléfono admite entre 8 y 15 dígitos, un máximo de 25 caracteres, espacios, guiones, paréntesis y un signo `+` inicial. No verifica existencia ni disponibilidad de WhatsApp.
+El teléfono admite entre 8 y 15 dígitos, un máximo de 25 caracteres, espacios, guiones, paréntesis y un signo `+` inicial.
+
+No se verifica la existencia del teléfono ni su disponibilidad en WhatsApp.
 
 El backend asigna:
 
@@ -387,7 +515,9 @@ El backend asigna:
 - `estado: nuevo`.
 - Sin cliente vinculado.
 
-Responde 201 con el mensaje `Pedido presencial creado correctamente` y el documento completo. Su ID se obtiene de `pedido._id`.
+Responde 201 con el mensaje `Pedido presencial creado correctamente` y el documento completo.
+
+Su ID se obtiene de `pedido._id`.
 
 Guardar email o teléfono no envía mensajes.
 
@@ -438,7 +568,7 @@ PUT selecciona el esquema según el origen guardado.
 
 En presencial, email y telefono deben estar presentes; uno puede estar vacío si el otro es válido.
 
-`confirmarAnticipacion` es adicional y opcional.
+`confirmarAnticipacion` es adicional y opcional para pedidos presenciales.
 
 PUT conserva cliente, ID, origen, creadoPor, estado y createdAt, cuando esos datos existen.
 
@@ -468,7 +598,9 @@ Pueden carecer de email, cliente, origen o creadoPor.
 
 No se realizó una migración.
 
-El controlador trata como web los documentos cuyo origen no sea presencial. No debe suponerse que todo documento sin cliente es presencial.
+El controlador trata como web los documentos cuyo origen no sea presencial.
+
+No debe suponerse que todo documento sin cliente es presencial.
 
 Más información en [PEDIDOS.md](./PEDIDOS.md).
 
@@ -490,31 +622,44 @@ Crear exige nombre, email y password. Se asignan `rol: admin` y `activo: true`.
 
 Actualizar exige nombre, email y activo. Conserva contraseña y rol.
 
-El backend impide que el administrador se elimine o desactive a sí mismo. Rechaza emails duplicados y campos desconocidos.
+El backend impide que el administrador se elimine o desactive a sí mismo.
+
+Rechaza emails duplicados y campos desconocidos.
 
 Las respuestas no incluyen contraseñas ni hashes.
 
-### Pruebas
+### Pruebas locales
 
-Yami documentó pruebas manuales de CRUD, validaciones, desactivación, reactivación y protección de la propia cuenta en [USUARIOS.md](./USUARIOS.md).
+En [USUARIOS.md](./USUARIOS.md) se documentan pruebas de CRUD, validaciones, desactivación, reactivación y protección de la propia cuenta.
 
-El 19/10/2026 también se comprobó el CRUD local desde Postman:
+También se comprobó desde Postman:
 
 - Creación de una cuenta temporal.
-- Consulta por ID: 200.
-- Listado: 200.
+- Consulta por ID y listado: 200.
 - Respuestas sin passwordHash.
-- Actualización: 200, conservando ID, rol, activo y createdAt.
+- Actualización: 200, conservando ID, rol y createdAt.
 - Eliminación: 200.
 - Consulta posterior: 404, `Usuario no encontrado`.
 
 La cuenta temporal fue eliminada.
 
-Esta ronda de Postman no equivale a repetir todas las pruebas de seguridad documentadas por Yami ni a probar Usuarios en Render.
+### Pruebas desde el frontend publicado
+
+Se comprobó:
+
+- Listado de administradores.
+- Creación de un administrador temporal.
+- Edición de su nombre y desactivación.
+- Persistencia de los cambios después de recargar.
+- Eliminación y ausencia posterior en el listado.
+
+El administrador temporal fue eliminado.
+
+Esta ronda funcional no equivale a repetir en producción todas las pruebas de seguridad locales.
 
 ## Scripts
 
-Ejecutar con la API funcionando, utilizando cuentas y registros de prueba.
+Ejecutar con la API funcionando y utilizando cuentas y registros de prueba.
 
 | Comando | Alcance |
 |---|---|
@@ -526,7 +671,9 @@ Ejecutar con la API funcionando, utilizando cuentas y registros de prueba.
 | node scripts/probarAccesoPedidosEmail.js | Separación de clientes y restricciones admin. |
 | node scripts/probarPedidosPresenciales.js | Creación, edición y permisos presenciales. |
 
-Revisar la URL configurada en cada script antes de ejecutarlo. Las ejecuciones documentadas de estos scripts se realizaron contra la API local.
+Revisar la URL configurada en cada script antes de ejecutarlo.
+
+Las ejecuciones documentadas de estos scripts se realizaron contra la API local.
 
 Los scripts de CRUD web, acceso con email y presenciales ocultan las contraseñas.
 
@@ -594,7 +741,7 @@ El script intenta limpiar los registros creados incluso si falla. Si la limpieza
 node scripts/probarCrudPedido.js
 ```
 
-Comprobó:
+Se comprobó:
 
 - Creación como cliente: 201 y estado nuevo.
 - Normalización de email en POST y PUT.
@@ -639,7 +786,9 @@ Este script completo no se volvió a ejecutar después del cambio presencial.
 
 Se comprobaron seis casos para POST y seis para PUT.
 
-Se aceptaron y normalizaron correos válidos, mayúsculas y espacios exteriores. Se rechazaron correos inválidos, espacios internos y texto vacío.
+Se aceptaron y normalizaron correos válidos, mayúsculas y espacios exteriores.
+
+Se rechazaron correos inválidos, espacios internos y texto vacío.
 
 Resultado:
 
@@ -675,9 +824,9 @@ También se verificaron presenciales:
 
 No se afirma una ejecución completa de todas las solicitudes de la colección.
 
-## Pruebas en Render del 19/10/2026
+## Pruebas iniciales en Render
 
-Se realizaron solicitudes manuales contra:
+Las pruebas iniciales del 19/10/2026 se realizaron contra:
 
 ```text
 https://lara-backend-5tq4.onrender.com
@@ -710,11 +859,9 @@ https://lara-backend-5tq4.onrender.com
 | Consulta posterior por ID | 404. |
 | Mis-pedidos final | 200 con listado vacío. |
 
-El pedido temporal fue eliminado.
+El pedido temporal de esta ronda fue eliminado.
 
 ### Pedido presencial temporal
-
-Se recibió una respuesta de creación correcta y se comprobó:
 
 | Caso | Resultado |
 |---|---|
@@ -726,11 +873,13 @@ Se recibió una respuesta de creación correcta y se comprobó:
 | DELETE | 200. |
 | Consulta posterior | 404. |
 
-El pedido temporal fue eliminado.
+El pedido temporal de esta ronda fue eliminado.
 
 ### Tiempos observados
 
-Se observaron demoras de aproximadamente 42 y 52 segundos en solicitudes anteriores, además de un error de protocolo HTTP/2 en Postman. No se confirmó su causa.
+Se observaron demoras de aproximadamente 42 y 52 segundos en solicitudes anteriores, además de un error de protocolo HTTP/2 en Postman.
+
+No se confirmó su causa.
 
 En comprobaciones posteriores:
 
@@ -742,15 +891,84 @@ En comprobaciones posteriores:
 
 Son mediciones puntuales. No representan una prueba de carga ni garantizan esos tiempos para todas las solicitudes.
 
+## Integración con el frontend publicado
+
+### Autenticación y navegación
+
+Se comprobó:
+
+- Inicio de sesión administrativo desde Vercel.
+- Acceso al panel.
+- Apertura directa de las rutas de React.
+- Menú de perfil y cierre de sesión.
+- Inicio de sesión de clientes.
+
+Se renovaron tokens durante las pruebas cuando fue necesario. Eso no constituye una prueba controlada del tiempo exacto de vencimiento.
+
+### Productos y catálogo público
+
+Se comprobó:
+
+- CRUD de productos desde el panel.
+- Carga y reemplazo de fotografías.
+- Persistencia después de recargar.
+- Aparición de productos disponibles en la sección Productos del local.
+- Ocultamiento de productos no disponibles después de recargar.
+- Reaparición al restaurar la disponibilidad.
+- Navegación del menú en celular mediante sus controles.
+
+El frontend conserva dos conjuntos separados:
+
+- Productos del local: obtenidos de esta API.
+- Catálogo original: productos estáticos del frontend.
+
+Cambiar la disponibilidad de un producto de MongoDB afecta al conjunto obtenido de la API.
+
+No modifica ni elimina productos del catálogo estático.
+
+Pueden existir productos similares en ambos conjuntos hasta completar la migración del catálogo.
+
+### Pedidos
+
+Se comprobó desde la web:
+
+- Creación de una consulta con sesión de cliente.
+- Aparición del pedido web en el panel.
+- Creación de un pedido presencial con teléfono y sin email.
+- Visualización de sus detalles.
+- Cambio de estado y persistencia después de recargar.
+- Actualización del resumen de pedidos del Dashboard.
+
+La edición completa de datos y la eliminación de pedidos existen en la API, pero su incorporación a la interfaz administrativa quedó pendiente.
+
+Los pedidos temporales creados en esta ronda desde la web deben revisarse y limpiarse por separado. No deben confundirse con los pedidos eliminados en las pruebas iniciales de Postman.
+
+### Usuarios
+
+Se comprobó el CRUD desde el panel publicado, incluyendo desactivación y persistencia después de recargar.
+
+El usuario temporal fue eliminado.
+
+### Alcance
+
+Estas comprobaciones confirman los flujos indicados.
+
+La revisión exhaustiva de validaciones, permisos, navegación y diseño en todos los tamaños de pantalla continúa como tarea de cierre.
+
 ## Manejo de errores
 
-Comprobaciones locales:
-
-| Caso | Resultado |
+| Caso | Resultado o comportamiento |
 |---|---|
 | JSON mal formado | 400 con mensaje específico. |
-| Cuerpo superior al límite de 100kb | 413 con mensaje específico. |
+| Cuerpo JSON superior al límite de 100kb | 413 con mensaje específico. |
 | Ruta inexistente | 404. |
+| Archivo mayor a 5 MB | 413. |
+| Errores de recepción de Multer | 400, excepto exceso de tamaño. |
+| Error interno inesperado | 500 con mensaje genérico. |
+
+El límite de JSON y el límite de archivos son independientes.
+
+Los dos primeros casos se comprobaron localmente. Los resultados confirmados de subida en Render están documentados en Imágenes de productos.
 
 Ejemplo de JSON mal formado:
 
@@ -805,7 +1023,7 @@ Estas comprobaciones no crearon cuentas ni pedidos.
 | Límite de login cliente | 429 |
 | Límite de login admin | 429 |
 | Límite de creación web | 429 |
-| Creación web después de terminar el bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado en la prueba. |
+| Creación web después de terminar el bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado. |
 
 ### Configuración
 
@@ -818,9 +1036,13 @@ Estas comprobaciones no crearon cuentas ni pedidos.
 
 La creación administrativa no utiliza el limitador de pedidos web.
 
-En la prueba de creación web se enviaron cuerpos vacíos con sesión cliente válida. Las solicitudes fueron rechazadas por validación con 400 hasta observar el bloqueo con 429.
+En la prueba de creación web se enviaron cuerpos vacíos con sesión cliente válida.
 
-Después de la ventana de bloqueo, sin reiniciar el servidor durante la espera, la misma solicitud volvió a responder 400 por validación. No creó pedidos.
+Las solicitudes respondieron 400 por validación hasta observar el bloqueo con 429.
+
+Después de la ventana de bloqueo, sin reiniciar el servidor durante la espera, la misma solicitud volvió a responder 400.
+
+No creó pedidos.
 
 No se midieron todos los umbrales desde ventanas vacías.
 
@@ -838,26 +1060,17 @@ Colección versionada:
 
 [Descargar colección](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-La última versión contabilizada contiene:
+Se integraron las consultas administrativas de productos en el PR #22.
 
-| Grupo | Cantidad |
-|---|---:|
-| Autenticación administrativa y productos | 16 |
-| Pedidos | 15 |
-| Clientes y pedidos propios | 15 |
-| Usuarios | 5 |
-| Pedidos presenciales | 10 |
-| Total | 61 |
+La colección incluye solicitudes de autenticación, productos, clientes, pedidos, usuarios y pedidos presenciales.
 
-Se conservaron las 51 solicitudes originales, incluida la carpeta Usuarios, y se agregaron diez solicitudes presenciales.
+Debe revisarse y contarse la versión final antes de la entrega, especialmente si se incorporan las solicitudes de imágenes utilizadas manualmente.
 
-Durante las pruebas se utilizaron también solicitudes modificadas manualmente en Postman. Antes de la entrega debe revisarse la exportación final, incorporar las consultas administrativas de productos y volver a contar las solicitudes.
+Las pruebas manuales de imágenes documentadas no implican que esas solicitudes ya estén guardadas en la colección versionada.
 
-No contiene aserciones automatizadas. El script previo calcula fechas; no verifica resultados.
+La colección no contiene aserciones automatizadas. El script previo calcula fechas; no verifica resultados.
 
 ### Entornos
-
-Se utilizaron entornos separados:
 
 | Entorno | baseUrl |
 |---|---|
@@ -888,9 +1101,15 @@ Se utilizaron entornos separados:
 
 Respetar mayúsculas y minúsculas.
 
-Guardar los tokens sin comillas ni prefijo Bearer. Las solicitudes agregan el prefijo.
+Guardar los tokens sin comillas ni prefijo Bearer.
 
-No exportar entornos con credenciales ni tokens reales. No guardar respuestas de login con tokens reales dentro de la colección compartida.
+En Authorization → Bearer Token, utilizar `{{token}}` o `{{clienteToken}}` según corresponda.
+
+Si un token recién obtenido funciona al pegarlo directamente pero falla al utilizar la variable, revisar el entorno seleccionado y el valor resuelto de esa variable.
+
+No exportar entornos con credenciales ni tokens reales.
+
+No guardar respuestas de login con tokens reales dentro de la colección compartida.
 
 ### Fechas automáticas
 
@@ -915,17 +1134,24 @@ Las fechas fijas utilizadas en pruebas anteriores no deben reutilizarse sin revi
 
 No ejecutar toda la colección sin revisar el orden y los registros afectados.
 
+Para probar archivos, utilizar archivos pequeños salvo cuando se compruebe específicamente el límite de tamaño.
+
+Los archivos locales de Postman no quedan automáticamente disponibles para otras personas que importen la colección.
+
 ## Coordinación con el frontend
 
-Para el panel de productos:
+### Productos
 
 - Listado completo: GET /api/productos/admin.
-- Consulta por ID: GET /api/productos/admin/:id.
+- Consulta administrativa por ID: GET /api/productos/admin/:id.
 - Ambas consultas requieren token admin.
+- Subida de imagen: POST /api/productos/imagen.
+- Guardar la URL devuelta en el campo imagen del producto.
 - Las escrituras conservan /api/productos y /api/productos/:id.
-- El catálogo público solo muestra disponibles.
+- El catálogo público de la API solo muestra disponibles.
+- El catálogo estático del frontend continúa separado.
 
-Para pedidos presenciales:
+### Pedidos presenciales
 
 - POST /api/pedidos/admin con token admin.
 - Al menos email o telefono.
@@ -937,9 +1163,7 @@ Para pedidos presenciales:
 - Cambiar estado mediante PATCH.
 - No enviar campos protegidos mediante POST o PUT.
 
-El flujo web conserva sus campos y autenticación actuales.
-
-La conexión completa de las pantallas publicadas debe comprobarse junto con Yami.
+El flujo web conserva sus campos y autenticación de cliente.
 
 ## Organización
 
@@ -961,10 +1185,10 @@ src/
 |---|---|
 | postman | Colección de solicitudes. |
 | scripts | Creación de cuentas y pruebas. |
-| config | Conexión a MongoDB. |
+| config | Configuración de MongoDB y Cloudinary. |
 | controllers | Respuestas HTTP. |
-| middlewares | Autenticación, validación y errores. |
-| models | Documentos. |
+| middlewares | Autenticación, recepción de archivos, validación y errores. |
+| models | Documentos de MongoDB. |
 | routes | Rutas, métodos y permisos. |
 | schemas | Validación Zod. |
 | services | Operaciones y lógica. |
@@ -984,27 +1208,37 @@ git switch -c feat/nombre-de-la-tarea
 
 Revisar cambios, crear commit, subir la rama y abrir PR hacia main.
 
-Integraciones confirmadas:
+### Integraciones confirmadas del backend
 
 | PR | Cambio | Commit de merge |
 |---|---|---|
 | #16 | Pedidos con email y pruebas. | 804fb8f |
 | #17 | Pruebas locales de preparación para deploy. | 56db427 |
 | #18 | Pedidos presenciales desde administración. | e58d5db |
-| #19 | Filtro público de productos y consultas administrativas. | e3a4f25 |
-| #20 | Configuración de CORS y proxy para Render. | 92a364c |
+| #19 | Filtro público y consultas administrativas de productos. | e3a4f25 |
+| #20 | CORS y proxy para Render. | 92a364c |
+| #21 | Documentación del despliegue y pruebas. | 805d0c9 |
+| #22 | Consultas administrativas de productos en Postman. | b7617da |
+| #23 | Carga de imágenes con Cloudinary y Multer. | ad96950 |
+| #24 | Manejo de errores de Multer. | b6e626e |
+| #25 | Validación de formato y diagnóstico de Cloudinary. | c82a10e |
 
 ## Pendientes
 
-- Confirmar la configuración de VITE_API_URL con Yami.
-- Probar los flujos desde el frontend publicado.
-- Verificar el rate limiting detrás del proxy de Render.
 - Comprobar la recuperación después del bloqueo de registro y ambos logins.
+- Verificar el rate limiting detrás del proxy de Render.
 - Revisar y exportar la colección final de Postman.
+- Incorporar a la colección las pruebas de imágenes que se decida entregar.
 - Conservar las carpetas Usuarios y Pedidos presenciales al exportar.
-- Incorporar las consultas administrativas de productos a la colección.
-- Actualizar PEDIDOS.md y registrar la verificación local de Usuarios.
-- Completar y comprobar las pantallas del frontend con Yami.
-- Revisar la documentación final y los archivos de entrega.
+- Revisar la coherencia de README.md, PEDIDOS.md y USUARIOS.md.
+- Revisar los pedidos y cuentas temporales que permanezcan en la base.
+- Resolver la limpieza de imágenes sin uso en Cloudinary.
+- Incorporar edición completa y eliminación de pedidos al frontend cuando se retome esa tarea.
+- Completar la migración del catálogo estático si se decide administrar todos sus productos desde MongoDB.
+- Revisar presentaciones y precios múltiples antes de migrar productos que actualmente los utilizan.
+- Completar la revisión responsive y de errores de todos los flujos.
+- Preparar los archivos y enlaces de entrega.
 
-Las pruebas locales, las pruebas manuales en Render y la integración desde el frontend se documentan por separado. Un resultado anterior no prueba automáticamente un cambio posterior.
+Las pruebas locales, las solicitudes manuales en Render y los flujos desde el frontend publicado se registran por separado.
+
+Un resultado anterior no prueba automáticamente un cambio posterior.
