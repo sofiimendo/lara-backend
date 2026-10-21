@@ -17,9 +17,7 @@ Este CRUD no administra las cuentas cliente.
 | Local | http://localhost:4000 |
 | Render | https://lara-backend-5tq4.onrender.com |
 
-Las pruebas de Usuarios documentadas aquí se realizaron contra la API local conectada a MongoDB Atlas.
-
-No se presenta el CRUD de Usuarios como probado en Render ni desde el frontend publicado.
+Se documentan por separado pruebas locales y pruebas funcionales desde el frontend publicado conectado a Render y MongoDB Atlas.
 
 ## Autenticación y autorización
 
@@ -77,7 +75,7 @@ Validaciones:
 
 - nombre: obligatorio, entre 1 y 100 caracteres después de quitar espacios exteriores.
 - email: obligatorio, formato válido y máximo 254 caracteres.
-- password: obligatoria, mínimo 12 caracteres y máximo 72 bytes en UTF-8.
+- password: obligatoria, mínimo 8 caracteres y máximo 72 bytes en UTF-8.
 - No se permiten campos adicionales.
 
 El email se normaliza quitando espacios exteriores y convirtiéndolo a minúsculas antes de validar su formato.
@@ -212,6 +210,8 @@ Pruebas exitosas:
 
 Las pruebas utilizaron una cuenta temporal que fue eliminada al finalizar.
 
+Las pruebas históricas de contraseñas corresponden al mínimo vigente durante esa ronda.
+
 ## Pruebas adicionales documentadas por Yami
 
 Se realizaron desde PowerShell contra la API local conectada a MongoDB Atlas, utilizando una cuenta administradora y una cuenta temporal de prueba.
@@ -272,6 +272,55 @@ La cuenta temporal fue eliminada.
 Esta ronda comprobó el CRUD desde Postman. No equivale a repetir todas las pruebas de seguridad y validaciones realizadas por Yami.
 
 Tampoco constituye una prueba del módulo en Render ni de su integración desde el panel publicado.
+
+## Verificación desde el frontend publicado
+
+Se comprobó:
+
+- Listado de administradores.
+- Creación de una cuenta administrativa temporal.
+- Edición de su nombre.
+- Desactivación de la cuenta.
+- Persistencia de los cambios después de recargar.
+- Eliminación de la cuenta temporal.
+- Ausencia posterior en el listado.
+
+La cuenta temporal fue eliminada.
+
+Esta ronda no equivale a repetir en producción todas las pruebas de seguridad realizadas localmente.
+
+## Cambio del mínimo de contraseña
+
+El 21/10/2026 se redujo el mínimo de creación a 8 caracteres.
+
+Se conservó el máximo de 72 bytes UTF-8 y el costo 12 de bcrypt.
+
+Las contraseñas existentes no se modifican.
+
+Se probaron de forma aislada los esquemas de Usuarios y Clientes, sin crear cuentas:
+
+| Entrada | Resultado |
+|---|---|
+| 7 caracteres ASCII | Rechazada. |
+| 8 caracteres ASCII | Aceptada. |
+| 72 bytes ASCII | Aceptada. |
+| 73 bytes ASCII | Rechazada. |
+| 36 letras á, equivalentes a 72 bytes | Aceptada. |
+| 37 letras á, equivalentes a 74 bytes | Rechazada. |
+
+Todas las comprobaciones finalizaron correctamente.
+
+Resultado:
+
+```text
+Validación de contraseñas correcta
+```
+
+Las pruebas históricas anteriores corresponden a la política vigente en cada ronda.
+
+La prueba aislada del nuevo mínimo no confirma todavía su despliegue en Render ni la actualización de los formularios.
+
+El script de creación del administrador inicial también se actualizó al mínimo de 8 caracteres. No se ejecutó durante estas pruebas de esquemas.
 
 ## Colección de Postman
 
@@ -341,15 +390,19 @@ Para el frontend actual, que agrega /api al construir las rutas, la URL base de 
 https://lara-backend-5tq4.onrender.com
 ```
 
-El frontend debe utilizar VITE_API_URL y volver a desplegarse después de configurarla.
+El frontend utiliza VITE_API_URL y debe volver a desplegarse después de modificar esa variable.
 
-La integración de Usuarios desde el panel publicado sigue pendiente de verificación.
+La integración funcional desde el panel publicado fue comprobada.
+
+La revisión exhaustiva de errores y sesiones continúa pendiente.
+
+El formulario de creación de administradores debe actualizarse para aceptar el nuevo mínimo de 8 caracteres y conservar la comprobación del máximo de 72 bytes UTF-8.
 
 ## Pendientes
 
-- Comprobar el CRUD de Usuarios en Render.
-- Conectar y verificar la pantalla de Usuarios del frontend publicado.
+- Comprobar la creación con el nuevo mínimo de 8 caracteres después del despliegue.
+- Actualizar el formulario de creación de administradores al nuevo mínimo.
 - Comprobar la presentación de errores y el vencimiento de sesión en el panel.
 - Conservar la carpeta Usuarios al exportar la colección final.
 
-Los resultados locales documentados se conservan como evidencia de esas rondas y no se presentan como pruebas de producción.
+Los resultados locales, las pruebas de esquemas y las pruebas funcionales de producción se documentan por separado.
