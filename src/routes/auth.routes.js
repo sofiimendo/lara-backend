@@ -1,6 +1,9 @@
 import { Router } from 'express'
 import { rateLimit } from 'express-rate-limit'
-import { login } from '../controllers/auth.controller.js'
+import {
+  login,
+  loginUnificado,
+} from '../controllers/auth.controller.js'
 import { validarBody } from '../middlewares/validarBody.js'
 import { loginSchema } from '../schemas/auth.schema.js'
 
@@ -22,6 +25,13 @@ router.post(
   limitarLogin,
   validarBody(loginSchema),
   login
+)
+
+router.post(
+  '/login-unificado',
+  limitarLogin,
+  validarBody(loginSchema),
+  loginUnificado
 )
 
 export default router
