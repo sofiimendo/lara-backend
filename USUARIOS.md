@@ -23,13 +23,23 @@ Se documentan por separado pruebas locales y pruebas funcionales desde el fronte
 
 Todas las rutas `/api/usuarios` requieren un token JWT válido y una cuenta activa con rol `admin`.
 
-El token se obtiene mediante:
+El token administrativo puede obtenerse mediante:
 
 ```text
 POST /api/auth/login
 ```
 
-Debe enviarse en el encabezado:
+También puede obtenerse utilizando una cuenta administradora en:
+
+```text
+POST /api/auth/login-unificado
+```
+
+Ambas rutas devuelven token y usuario cuando autentican correctamente una cuenta administradora.
+
+El login unificado también admite clientes, pero sus tokens tienen audiencia de cliente y no permiten administrar usuarios.
+
+Enviar el token administrativo en el encabezado:
 
 ```text
 Authorization: Bearer TOKEN
@@ -37,9 +47,19 @@ Authorization: Bearer TOKEN
 
 Los tokens vencen después de una hora.
 
-La autenticación comprueba la firma, el vencimiento, la audiencia administrativa y la cuenta activa con rol admin.
+La autenticación comprueba:
+
+- Firma.
+- Vencimiento.
+- Emisor lara-backend.
+- Audiencia lara-admin.
+- Identificador de la cuenta.
+- Cuenta activa.
+- Rol admin.
 
 Un token cliente es rechazado por la separación de audiencias. No debe confundirse ese rechazo con una prueba de token vencido.
+
+La documentación completa del login está en [README.md](./README.md).
 
 ## Endpoints
 
@@ -75,7 +95,7 @@ Validaciones:
 
 - nombre: obligatorio, entre 1 y 100 caracteres después de quitar espacios exteriores.
 - email: obligatorio, formato válido y máximo 254 caracteres.
-- password: obligatoria, mínimo 8 caracteres y máximo 72 bytes en UTF-8.
+- password: obligatoria, mínimo 8 caracteres y máximo 72 bytes UTF-8.
 - No se permiten campos adicionales.
 
 El email se normaliza quitando espacios exteriores y convirtiéndolo a minúsculas antes de validar su formato.
@@ -89,6 +109,18 @@ Respuesta exitosa: HTTP 201.
 
 Las respuestas no incluyen la contraseña ni passwordHash.
 
+### Diferencia actual con el formulario
+
+El backend acepta contraseñas desde 8 caracteres.
+
+El formulario de creación de administradores del frontend todavía exige 12 caracteres en su validación y sus textos.
+
+Por lo tanto, una contraseña de entre 8 y 11 caracteres puede cumplir la política de la API y ser bloqueada por ese formulario.
+
+El ajuste del formulario está pendiente. El registro público de clientes ya fue actualizado a 8 caracteres.
+
+Las contraseñas existentes no se modificaron al cambiar la política.
+
 ## Listar usuarios
 
 ```text
@@ -98,6 +130,8 @@ GET /api/usuarios
 Devuelve un objeto con la propiedad usuarios, que contiene un arreglo de cuentas administrativas ordenadas por fecha de creación descendente.
 
 Respuesta exitosa: HTTP 200.
+
+Las cuentas cliente no se incluyen en este listado.
 
 ## Consultar usuario por ID
 
@@ -160,6 +194,8 @@ La consulta posterior del mismo ID responde 404:
 }
 ```
 
+No utilizar cuentas reales de trabajo para comprobar eliminaciones.
+
 ## Seguridad
 
 - Todas las operaciones requieren autenticación JWT y permisos de administrador.
@@ -171,6 +207,11 @@ La consulta posterior del mismo ID responde 404:
 - Zod rechaza campos desconocidos y solicitudes incompletas.
 - Los emails duplicados se rechazan.
 - El rol administrativo se asigna desde el backend.
+- El login compartido no permite elegir un rol mediante el cuerpo de la solicitud.
+
+La desactivación de una cuenta impide su autenticación y el uso de sus tokens en las rutas protegidas mientras permanezca inactiva.
+
+No hay recuperación de contraseña ni envío automático de correos.
 
 ## Códigos de respuesta
 
@@ -271,7 +312,7 @@ La cuenta temporal fue eliminada.
 
 Esta ronda comprobó el CRUD desde Postman. No equivale a repetir todas las pruebas de seguridad y validaciones realizadas por Yami.
 
-Tampoco constituye una prueba del módulo en Render ni de su integración desde el panel publicado.
+Tampoco constituye por sí sola una prueba del módulo en Render ni de su integración desde el panel publicado.
 
 ## Verificación desde el frontend publicado
 
@@ -318,13 +359,31 @@ Validación de contraseñas correcta
 
 Las pruebas históricas anteriores corresponden a la política vigente en cada ronda.
 
-La prueba aislada del nuevo mínimo no confirma todavía su despliegue en Render ni la actualización de los formularios.
-
 El script de creación del administrador inicial también se actualizó al mínimo de 8 caracteres. No se ejecutó durante estas pruebas de esquemas.
+
+El 23/10/2026 se comprobó el registro de una cuenta cliente con una contraseña de ocho caracteres y su posterior inicio de sesión.
+
+Esa prueba de clientes no sustituye la comprobación específica de creación de administradores con el nuevo mínimo en Render, que continúa pendiente.
+
+## Verificación del login compartido
+
+El 23/10/2026 se comprobó en local y en producción:
+
+- Inicio de sesión de una cuenta administradora desde /login.
+- Redirección al panel administrativo.
+- Inicio de sesión de una cuenta cliente desde el mismo formulario.
+- Redirección del cliente al inicio de la landing.
+
+También se comprobó localmente:
+
+- Redirección al login administrativo al intentar abrir /admin con solo sesión cliente.
+- Rechazo de credenciales cliente desde /admin/login.
+
+Estas comprobaciones no constituyen una repetición del CRUD de Usuarios ni de todas las pruebas de autorización con tokens del login unificado.
 
 ## Colección de Postman
 
-Las cinco solicitudes del módulo se encuentran en la carpeta Usuarios de:
+Las cinco solicitudes del CRUD se encuentran en la carpeta Usuarios de:
 
 [Descargar colección](./postman/Lara-Pasteleria-API.postman_collection.json)
 
@@ -336,7 +395,13 @@ Solicitudes:
 - PUT /api/usuarios/:id.
 - DELETE /api/usuarios/:id.
 
-Variables utilizadas:
+La colección completa revisada el 23/10/2026 contiene 77 solicitudes.
+
+Además del CRUD, incluye una carpeta de pruebas de contraseñas con mínimo de 8 caracteres.
+
+El login unificado todavía no tiene solicitudes propias incorporadas.
+
+Variables utilizadas por el módulo:
 
 | Variable | Uso |
 |---|---|
@@ -347,11 +412,11 @@ Variables utilizadas:
 
 Respetar la escritura de usuarioId.
 
-No se incluyeron credenciales ni tokens reales en las solicitudes versionadas.
-
 No exportar entornos con secretos ni guardar respuestas de login con tokens reales en la colección compartida.
 
 La colección no contiene aserciones automatizadas.
+
+La presencia de una solicitud en la colección no confirma que se haya ejecutado ni aprobado.
 
 ### Repetir el CRUD
 
@@ -378,11 +443,23 @@ No utilizar cuentas reales de trabajo para las pruebas de eliminación o desacti
 | src/middlewares/autenticar.js | Autenticación y autorización administrativa. |
 | src/middlewares/manejarErrores.js | Manejo de errores. |
 
+El login compartido utiliza también:
+
+- src/services/auth.service.js.
+- src/controllers/auth.controller.js.
+- src/routes/auth.routes.js.
+- src/schemas/auth.schema.js.
+
 ## Integración con el frontend
 
-El panel utiliza estas rutas para gestionar las cuentas administrativas.
+El panel utiliza las rutas del módulo para gestionar cuentas administrativas.
 
-Debe iniciar sesión mediante /api/auth/login y enviar el token en las solicitudes protegidas.
+Puede obtener su sesión mediante:
+
+- /api/auth/login desde el login exclusivo administrativo.
+- /api/auth/login-unificado desde el login compartido, utilizando credenciales admin.
+
+En ambos casos debe enviar el token administrativo en las solicitudes protegidas.
 
 Para el frontend actual, que agrega /api al construir las rutas, la URL base de producción es:
 
@@ -396,13 +473,23 @@ La integración funcional desde el panel publicado fue comprobada.
 
 La revisión exhaustiva de errores y sesiones continúa pendiente.
 
-El formulario de creación de administradores debe actualizarse para aceptar el nuevo mínimo de 8 caracteres y conservar la comprobación del máximo de 72 bytes UTF-8.
+El formulario de creación de administradores debe actualizarse para aceptar el mínimo de 8 caracteres y conservar la comprobación del máximo de 72 bytes UTF-8.
+
+## Participación en el backend
+
+- Sofía Mendoza: desarrollo del backend, pruebas e integración.
+- Yamila Valdez Aguilar: implementación y pruebas del módulo de Usuarios, además de carga de imágenes e integración administrativa.
+- Veronica Teresa Lopez Fernandez: revisión del backend.
 
 ## Pendientes
 
-- Comprobar la creación con el nuevo mínimo de 8 caracteres después del despliegue.
-- Actualizar el formulario de creación de administradores al nuevo mínimo.
+- Ajustar el formulario de creación de administradores al mínimo de 8 caracteres.
+- Comprobar específicamente la creación de un administrador con contraseña de ocho caracteres en Render.
+- Repetir pruebas de autorización del módulo con tokens del login unificado.
 - Comprobar la presentación de errores y el vencimiento de sesión en el panel.
-- Conservar la carpeta Usuarios al exportar la colección final.
+- Incorporar solicitudes del login unificado a Postman.
+- Conservar la carpeta Usuarios en futuras exportaciones de la colección.
+
+No se implementaron recuperación de contraseña ni correos automáticos.
 
 Los resultados locales, las pruebas de esquemas y las pruebas funcionales de producción se documentan por separado.

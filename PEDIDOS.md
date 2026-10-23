@@ -4,6 +4,8 @@ La API recibe consultas web y permite registrar encargos presenciales desde admi
 
 Recibir una consulta no confirma una reserva: Lara debe confirmar disponibilidad y presupuesto.
 
+Los clientes pueden consultar sus pedidos y ver los estados modificados desde el panel administrativo.
+
 ## Entornos
 
 | Entorno | URL base |
@@ -22,10 +24,13 @@ Las pruebas locales, las pruebas en Render y la integración desde el frontend s
 | Método | Ruta | Acción |
 |---|---|---|
 | POST | /api/clientes/registro | Registrar cliente. |
-| POST | /api/clientes/login | Login cliente. |
-| POST | /api/auth/login | Login administrativo. |
+| POST | /api/clientes/login | Login exclusivo de clientes. |
+| POST | /api/auth/login | Login exclusivo de administradores. |
+| POST | /api/auth/login-unificado | Login compartido según el rol de la cuenta. |
 
 El registro requiere nombre, email y password. Los logins requieren email y password.
+
+El registro de clientes utiliza un mínimo de 8 caracteres y un máximo de 72 bytes UTF-8 para la contraseña.
 
 Los tokens duran una hora.
 
@@ -42,7 +47,11 @@ Authorization: Bearer TOKEN
 
 Se verifican token, audiencia, cuenta activa y rol.
 
+El login unificado devuelve token y usuario. El login exclusivo de clientes devuelve token y cliente.
+
 Un token cliente vigente puede responder 200 en mis-pedidos y 401 en una ruta administrativa. Esto comprueba separación de audiencias, no vencimiento.
+
+La documentación completa de autenticación está en [README.md](./README.md).
 
 ## Rutas
 
@@ -310,11 +319,39 @@ Respuesta: HTTP 200 con pedidos.
 }
 ```
 
+Los pedidos se ordenan por fecha de creación descendente.
+
 Los cambios administrativos de pedidos web se reflejan aquí.
 
 Un cliente no puede utilizar la consulta administrativa por ID, aunque el pedido sea propio.
 
 Los presenciales sin cliente vinculado no aparecen en esta consulta.
+
+### Pantalla Mis pedidos
+
+El frontend utiliza este endpoint en:
+
+```text
+https://lara-pasteleria.vercel.app/mis-pedidos
+```
+
+La pantalla incluye:
+
+- Acceso desde el Header cuando hay sesión cliente.
+- Tipo de pedido y estado.
+- Fecha solicitada.
+- Cantidad de personas.
+- Evento y detalles cuando existen.
+- Estado de carga.
+- Mensaje de lista vacía.
+- Mensaje de error y botón para reintentar.
+- Redirección al login si falta el token o la API responde 401.
+
+La consulta se realiza al abrir la pantalla o recargarla.
+
+No hay actualización en tiempo real. Si una administradora modifica el estado mientras el cliente mantiene la pantalla abierta, el cliente debe recargar para verlo.
+
+Las sesiones del frontend se guardan por pestaña y origen mediante sessionStorage.
 
 ## Consultas administrativas
 
@@ -400,6 +437,8 @@ La actualización valida el documento completo antes de guardar.
 
 Respuesta: HTTP 200, mensaje Datos del pedido actualizados correctamente y pedido actualizado.
 
+La operación existe en la API, pero la edición completa de datos todavía no está incorporada a la interfaz administrativa.
+
 ## Cambiar estado
 
 ```text
@@ -430,6 +469,8 @@ Estado no admitido: 400.
 
 Aplica a pedidos web y presenciales.
 
+En pedidos web, el cliente ve el estado actualizado al consultar nuevamente sus pedidos.
+
 ## Eliminar
 
 ```text
@@ -451,6 +492,8 @@ Respuesta: HTTP 200.
 Consultar después el mismo ID responde 404.
 
 El pedido web eliminado deja de aparecer en mis-pedidos.
+
+La operación existe en la API, pero todavía no está incorporada a la interfaz administrativa.
 
 ## Errores
 
@@ -590,7 +633,7 @@ Los dos pedidos creados manualmente se eliminaron y sus consultas posteriores re
 
 Las respuestas 401 iniciales con sesiones no confirmadas como vigentes no se contabilizan como prueba de permisos.
 
-Estos resultados no equivalen a ejecutar nuevamente las 61 solicitudes de la colección.
+Estos resultados no equivalen a ejecutar toda la colección. En esa etapa contenía 61 solicitudes; la versión revisada el 23/10 contiene 77.
 
 ## Pruebas en Render del 19/10/2026
 
@@ -642,9 +685,59 @@ Estas pruebas verifican los flujos indicados en el entorno publicado.
 
 No equivalen a repetir todas las pruebas locales de permisos, validaciones, anticipación, separación entre clientes o límites.
 
-La prueba completa desde el frontend publicado sigue pendiente.
+Las comprobaciones posteriores desde el frontend publicado se registran en la siguiente sección.
 
 Se observaron demoras y un error de protocolo HTTP/2 en Postman durante la sesión. No se confirmó su causa. Las mediciones posteriores de health y productos respondieron en menos de un segundo.
+
+## Pruebas desde el frontend publicado
+
+### Integración anterior al 23/10/2026
+
+Se comprobó:
+
+- Creación de una consulta web con sesión cliente.
+- Recepción en el panel con origen web, email y estado nuevo.
+- Cambio de estado y persistencia después de recargar.
+- Creación de un pedido presencial desde administración.
+- Consulta de detalles y visualización del origen presencial.
+- Actualización de pedidos recientes y contadores del Dashboard.
+
+La edición completa y la eliminación de pedidos no se probaron desde la interfaz porque todavía no están incorporadas allí.
+
+### Seguimiento del cliente el 23/10/2026
+
+Se comprobó el recorrido completo en producción:
+
+1. La cuenta cliente tenía una consulta de Mesa dulce para el 30/10/2026.
+2. Mis pedidos mostraba cinco personas, evento Reunión y estado Nuevo.
+3. Se identificó la misma consulta desde el panel administrativo.
+4. Se cambió su estado a Confirmado.
+5. Se recargó Mis pedidos desde la sesión cliente.
+6. La pantalla mostró Confirmado.
+
+La prueba se realizó utilizando la web de Vercel y la API de Render.
+
+Se mantuvieron las sesiones cliente y administrativa en pestañas diferentes.
+
+La comprobación confirma la lectura del estado actualizado. No prueba actualización automática ni envío de notificaciones, que no están implementados.
+
+### Pruebas locales de la pantalla
+
+- Listado de pedidos propios.
+- Acceso desde el Header.
+- Acceso desde el menú móvil.
+- Diseño de la pantalla revisado y aprobado.
+- Compilación correcta con pnpm build.
+
+Queda pendiente comprobar todos los estados de error, lista vacía, reintento y vencimiento de sesión en la interfaz publicada.
+
+### Limpieza
+
+Los pedidos eliminados durante las pruebas de Postman no deben confundirse con los creados después desde la web.
+
+La consulta de Mesa dulce y los demás registros temporales deben revisarse antes de retirarlos.
+
+No se afirma haber eliminado esos registros.
 
 ## Pruebas anteriores
 
@@ -662,7 +755,9 @@ Verificó dos clientes con el mismo email de contacto, separación de pedidos pr
 Prueba de acceso a pedidos con email correcta: true
 ```
 
-Ambos pedidos se eliminaron. Este script completo no se volvió a ejecutar después del cambio presencial.
+Ambos pedidos se eliminaron.
+
+Este script completo no se volvió a ejecutar después del cambio presencial ni después de incorporar el login unificado.
 
 ### Email web aislado
 
@@ -700,22 +795,27 @@ Los antecedentes no prueban por sí solos los cambios posteriores.
 
 [Lara Pastelería API](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-La última versión contabilizada contiene:
+La colección revisada el 23/10/2026 contiene:
 
 | Grupo | Cantidad |
 |---|---:|
-| Autenticación admin y productos | 16 |
-| Pedidos | 15 |
-| Clientes y propios | 15 |
+| Autenticación administrativa y productos originales | 16 |
+| Pedidos web y administración | 15 |
+| Clientes y pedidos propios | 15 |
 | Usuarios | 5 |
-| Presenciales | 10 |
-| Total | 61 |
+| Pedidos presenciales | 10 |
+| Productos administrativos adicionales | 2 |
+| Imágenes de productos | 6 |
+| Contraseñas mínimo 8 | 8 |
+| Total | 77 |
 
-Las 51 solicitudes originales se conservaron.
+El login unificado todavía no tiene solicitudes propias en la colección. Sus pruebas manuales están documentadas en README.md.
 
-Durante las pruebas se utilizaron también solicitudes modificadas manualmente. Antes de la entrega debe revisarse la exportación final y volver a contar sus solicitudes.
+Durante las pruebas se utilizaron también solicitudes modificadas manualmente.
 
-No contiene aserciones automatizadas. El script previo calcula fechas, no comprueba resultados.
+La colección no contiene aserciones automatizadas. El script previo calcula fechas, no comprueba resultados.
+
+El número de solicitudes no representa una ejecución completa ni confirma por sí solo sus resultados.
 
 ### Entornos
 
@@ -775,17 +875,17 @@ No ejecutar toda la colección sin revisar orden y registros afectados.
 
 ## Coordinación con frontend
 
-Yami trabaja en lara-pasteleria.
+El frontend está en el repositorio lara-pasteleria.
 
 ### URL base
 
-El frontend agrega /api a sus solicitudes. Por lo tanto, la variable de Vercel debe tener:
+La variable configurada en Vercel es:
 
 ```text
 VITE_API_URL=https://lara-backend-5tq4.onrender.com
 ```
 
-El frontend debe utilizar esa variable en lugar de una URL local fija y volver a desplegarse.
+El frontend agrega /api a sus solicitudes.
 
 El backend tiene configurado como origen permitido:
 
@@ -799,7 +899,14 @@ Se comprobaron los preflight en Render:
 - Origen ajeno: 204 sin Access-Control-Allow-Origin.
 - POST y encabezados authorization,content-type permitidos para el origen configurado.
 
-La integración completa en navegador sigue pendiente.
+La integración funcional en navegador fue comprobada para los recorridos documentados.
+
+### Login
+
+- El acceso compartido utiliza POST /api/auth/login-unificado.
+- Los clientes guardan su token en lara_cliente_token.
+- Los administradores guardan su token en lara_admin_token.
+- El rol y la audiencia del token se determinan en el backend.
 
 ### Web
 
@@ -809,6 +916,15 @@ La integración completa en navegador sigue pendiente.
 - Confirmar recepción después del 201.
 - Aclarar que no confirma una reserva.
 
+### Mis pedidos
+
+- GET /api/pedidos/mis-pedidos con token cliente.
+- Leer la propiedad pedidos.
+- Mostrar únicamente la respuesta vinculada a la cuenta autenticada.
+- Consultar al abrir la pantalla o recargar.
+- Mostrar carga, lista vacía, errores y reintento.
+- Redirigir al login ante ausencia de token o respuesta 401.
+
 ### Presencial
 
 - POST /api/pedidos/admin con token admin.
@@ -816,6 +932,8 @@ La integración completa en navegador sigue pendiente.
 - Confirmación explícita para aceptar menos anticipación.
 - ID en pedido._id.
 - No enviar campos protegidos.
+
+La creación presencial y la consulta de detalles se comprobaron desde el panel publicado.
 
 ### Edición y listado
 
@@ -827,15 +945,20 @@ La integración completa en navegador sigue pendiente.
 - Cambiar estado por PATCH.
 - Mostrar carga, errores y vencimiento de sesión.
 
-La conexión presencial debe comprobarse desde el panel publicado.
+La edición completa y la eliminación están disponibles en la API, pero continúan fuera de la interfaz administrativa actual.
 
-## Pendientes
+## Pendientes y límites actuales
 
-- Configurar VITE_API_URL en Vercel y actualizar el frontend para utilizarla.
-- Probar creación y administración de pedidos desde la web publicada.
 - Verificar el rate limiting detrás del proxy de Render.
-- Definir y completar otros escenarios concretos de autenticación pendientes.
-- Revisar y exportar la colección final conservando Usuarios y Presenciales.
-- Actualizar el conteo de solicitudes después de la exportación final.
+- Repetir pruebas de separación y permisos con tokens del login unificado.
+- Completar pruebas de sesión vencida, lista vacía, errores y reintento en Mis pedidos.
+- Completar la revisión responsive en dispositivos reales.
+- Incorporar el login unificado a Postman.
+- Revisar los pedidos y cuentas temporales antes de eliminarlos.
+- Incorporar edición completa y eliminación al frontend si se amplía esa interfaz.
 
-Los pedidos con email y los pedidos presenciales ya están integrados en main. Las pruebas anteriores y locales no sustituyen la verificación de la integración publicada.
+No hay envío automático de correos, notificaciones ni actualización de estados en tiempo real.
+
+Los pedidos con email, los pedidos presenciales y el seguimiento desde la cuenta cliente están integrados.
+
+Las pruebas locales, las solicitudes manuales en Render y los recorridos del frontend publicado se documentan por separado.
