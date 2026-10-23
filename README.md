@@ -1,6 +1,6 @@
 # Lara Backend
 
-API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar.
+API de Lara Pastelería, desarrollada por Sofía Mendoza y Yamila Valdez Aguilar, con revisión del backend a cargo de Veronica Teresa Lopez Fernandez.
 
 Incluye administración de productos, pedidos y usuarios, autenticación de administradores y clientes, validaciones y carga de imágenes con Cloudinary.
 
@@ -13,18 +13,26 @@ Admite consultas web de clientes registrados y pedidos presenciales cargados por
 | Backend en Render | https://lara-backend-5tq4.onrender.com |
 | Health del backend | https://lara-backend-5tq4.onrender.com/api/health |
 | Frontend en Vercel | https://lara-pasteleria.vercel.app |
+| Login compartido | https://lara-pasteleria.vercel.app/login |
+| Registro de clientes | https://lara-pasteleria.vercel.app/registro |
+| Mis pedidos, requiere sesión cliente | https://lara-pasteleria.vercel.app/mis-pedidos |
+| Login exclusivo de administradores | https://lara-pasteleria.vercel.app/admin/login |
 
-Se comprobó la comunicación entre el frontend publicado y la API mediante autenticación, gestión de productos con imágenes, pedidos y usuarios.
+Se comprobó la comunicación entre el frontend publicado y la API mediante autenticación, gestión de productos con imágenes, pedidos, usuarios y consulta de pedidos propios.
 
 Las pruebas realizadas se detallan más adelante. No equivalen a una prueba exhaustiva de todos los escenarios posibles.
 
-## Repositorios
+## Repositorios y documentación
 
-| Proyecto | Uso |
+| Recurso | Enlace |
 |---|---|
-| [lara-backend](https://github.com/sofiimendo/lara-backend) | API actual. |
-| [lara-pasteleria](https://github.com/sofiimendo/lara-pasteleria) | Landing y panel administrativo en React. |
-| lara-stock | Trabajo anterior de backend; no forma parte de esta integración. |
+| Backend | https://github.com/sofiimendo/lara-backend |
+| Frontend | https://github.com/sofiimendo/lara-pasteleria |
+| Documentación de pedidos | [PEDIDOS.md](./PEDIDOS.md) |
+| Documentación de usuarios | [USUARIOS.md](./USUARIOS.md) |
+| Colección de Postman | [Lara Pastelería API](./postman/Lara-Pasteleria-API.postman_collection.json) |
+
+El repositorio anterior `lara-stock` no forma parte de esta integración.
 
 ## Tecnologías
 
@@ -57,6 +65,8 @@ Entorno local observado durante las pruebas:
 |---|---|
 | Node.js | 26.3.0 |
 | pnpm | 11.17.0 |
+
+Si pnpm se administra mediante Corepack, se puede utilizar `corepack pnpm` en los comandos. Si pnpm está instalado directamente, se utiliza `pnpm`.
 
 ### Configurar el entorno
 
@@ -107,6 +117,8 @@ API de Lara disponible en http://localhost:4000
 
 El frontend y el backend se ejecutan en terminales separadas.
 
+Si el frontend local apunta a `http://localhost:4000`, la API local debe permanecer encendida. Iniciar Vite no inicia el backend.
+
 ## Health
 
 ```text
@@ -122,9 +134,11 @@ Respuesta: HTTP 200.
 }
 ```
 
-La raíz no tiene una ruta definida y responde 404.
+La raíz de la API no tiene una ruta definida y responde 404.
 
-Health comprueba que el servidor HTTP responde. No ejecuta una consulta a MongoDB en cada solicitud.
+Health comprueba que el servidor HTTP responde. No ejecuta una consulta a MongoDB en cada solicitud ni verifica todos los flujos de la aplicación.
+
+Se configuró UptimeRobot para consultar este endpoint.
 
 ## Despliegue en Render
 
@@ -186,19 +200,19 @@ Modificar una variable de Vite requiere volver a compilar y desplegar el fronten
 
 En desarrollo, el frontend utiliza `http://localhost:4000` cuando no tiene configurada `VITE_API_URL`.
 
-El frontend dispone de una configuración de reescritura en Vercel para que las rutas de React puedan abrirse directamente.
+El frontend dispone de una configuración de reescritura en Vercel para abrir directamente y recargar las rutas de React.
 
 ### Funcionamiento independiente de la computadora de desarrollo
 
-La versión publicada utiliza los servicios de Vercel, Render, MongoDB Atlas y Cloudinary.
+La versión publicada utiliza Vercel, Render, MongoDB Atlas y Cloudinary.
 
 El backend publicado se ejecuta en Render y establece su propia conexión a MongoDB Atlas. No utiliza el proceso de Node.js iniciado en la computadora de desarrollo.
 
-Lara debe utilizar la dirección pública del frontend.
+Se comprobó el funcionamiento de la web publicada con los servidores locales apagados.
 
 Las direcciones `localhost` corresponden únicamente al desarrollo local.
 
-Queda pendiente realizar y registrar una comprobación con los procesos locales detenidos y desde otro dispositivo, además de definir el alojamiento adecuado para el uso cotidiano de Lara.
+La disponibilidad sostenida del servicio y la elección del alojamiento para el uso cotidiano de Lara deben evaluarse por separado.
 
 ## CORS
 
@@ -269,17 +283,70 @@ No existe recuperación de contraseña ni envío automático de correos.
 
 | Método | Ruta | Acción |
 |---|---|---|
-| POST | /api/auth/login | Login administrativo. |
+| POST | /api/auth/login | Login exclusivo de administradores. |
+| POST | /api/auth/login-unificado | Login de clientes y administradores. |
 | POST | /api/clientes/registro | Registro de cliente. |
-| POST | /api/clientes/login | Login de cliente. |
+| POST | /api/clientes/login | Login exclusivo de clientes. |
 
 El registro de clientes exige nombre, email y password. Asigna `rol: cliente` y `activo: true`.
 
-Las contraseñas se guardan como hashes bcrypt y requieren al menos 8 caracteres y un máximo de 72 bytes UTF-8.
+Las contraseñas de creación se guardan como hashes bcrypt y requieren al menos 8 caracteres y un máximo de 72 bytes UTF-8.
 
-El login administrativo solo admite cuentas admin activas.
+Los emails se normalizan a minúsculas y sin espacios exteriores.
 
-Un login correcto devuelve 200, token y datos de la cuenta.
+### Login compartido
+
+```text
+POST /api/auth/login-unificado
+```
+
+Cuerpo:
+
+```json
+{
+  "email": "cuenta@example.com",
+  "password": "CONTRASEÑA_DE_LA_CUENTA"
+}
+```
+
+El servicio busca la cuenta, comprueba que esté activa, valida la contraseña y genera el token según su rol.
+
+No se acepta un rol enviado por el cliente para decidir los permisos.
+
+Respuesta exitosa: HTTP 200.
+
+```json
+{
+  "message": "Sesión iniciada correctamente",
+  "token": "TOKEN_JWT",
+  "usuario": {
+    "id": "ID_DE_LA_CUENTA",
+    "nombre": "Nombre de la cuenta",
+    "email": "cuenta@example.com",
+    "rol": "cliente"
+  }
+}
+```
+
+Para una cuenta administrativa, `usuario.rol` es `admin` y el token tiene audiencia administrativa.
+
+Credenciales incorrectas, cuenta inexistente o inactiva: HTTP 401 con el mensaje:
+
+```text
+Email o contraseña incorrectos
+```
+
+La respuesta no informa cuál de esas condiciones produjo el rechazo.
+
+### Compatibilidad con los accesos exclusivos
+
+- `/api/auth/login` continúa admitiendo únicamente cuentas admin activas y devuelve `{ message, token, usuario }`.
+- `/api/clientes/login` continúa admitiendo únicamente cuentas cliente activas y devuelve `{ message, token, cliente }`.
+- `/api/auth/login-unificado` admite ambos roles y devuelve `{ message, token, usuario }`.
+
+El frontend utiliza el login compartido desde `/login` y conserva el acceso exclusivo administrativo desde `/admin/login`.
+
+### Tokens y permisos
 
 Los tokens duran una hora.
 
@@ -288,17 +355,21 @@ Los tokens duran una hora.
 | Administrador | lara-admin |
 | Cliente | lara-cliente |
 
+Se firman con HS256 y emisor `lara-backend`.
+
 Las rutas protegidas reciben:
 
 ```text
 Authorization: Bearer TOKEN
 ```
 
-Se verifican token, audiencia, cuenta activa y rol.
+Se verifican firma, vencimiento, audiencia, identificador de cuenta, cuenta activa y rol.
 
 Un token cliente en una ruta administrativa responde 401 por la separación de audiencias.
 
 El mensaje `Token inválido o vencido` también puede aparecer cuando el token pertenece a una audiencia distinta. Por sí solo, el mensaje no demuestra que el token haya vencido.
+
+El frontend guarda la sesión en `sessionStorage`, por pestaña y origen. Esa elección del frontend no reemplaza la validación de permisos del backend.
 
 ### Cambio del mínimo de contraseña a 8 caracteres
 
@@ -325,11 +396,13 @@ Resultado:
 Validación de contraseñas correcta
 ```
 
-Estas pruebas cubren los esquemas de Clientes y Usuarios.
+El 23/10/2026 se ajustaron los dos campos y el mensaje del registro de clientes del frontend al mínimo de 8 caracteres.
 
-No ejecutaron el script de creación del administrador ni prueban todavía el cambio desplegado.
+Se comprobó el registro local con una contraseña de ocho caracteres y el inicio de sesión de esa cuenta. También se comprobó su acceso desde la web publicada.
 
-Los formularios del frontend deben actualizarse por separado.
+El formulario de creación de administradores todavía exige 12 caracteres. Su ajuste sigue pendiente.
+
+El script de creación del administrador inicial no se ejecutó durante las pruebas aisladas de esquemas.
 
 ## Productos
 
@@ -458,8 +531,6 @@ Los errores de configuración o del proveedor se diagnostican desde el servidor.
 
 ### Pruebas confirmadas en Render
 
-Se comprobó la subida de una imagen válida y el uso de su URL en un producto.
-
 | Comprobación | Resultado |
 |---|---|
 | Subida válida con sesión administrativa | 201. |
@@ -468,7 +539,7 @@ Se comprobó la subida de una imagen válida y el uso de su URL en un producto.
 | Eliminar el producto temporal | 200. |
 | Solicitud sin archivo | 400: Seleccioná una imagen para subir. |
 | Imagen superior a 5 MB | 413: La imagen no puede superar los 5 MB. |
-| Archivo README.md enviado como imagen | 400: Formato no permitido. Seleccioná una imagen JPG, PNG o WebP. |
+| Archivo README.md enviado como imagen | 400: Formato no permitido. |
 | Solicitud sin sesión | 401: Debés iniciar sesión para continuar. |
 | Solicitud con token vigente de cliente | 401: Token inválido o vencido. |
 | Mismo token cliente en mis-pedidos | 200, confirmando que estaba vigente. |
@@ -633,7 +704,31 @@ Se permite cambiar entre cualquiera de ellos mediante PATCH.
 
 DELETE elimina el documento. Utilizar `cancelado` si se necesita conservarlo.
 
-`mis-pedidos` filtra por la cuenta cliente autenticada. Los presenciales sin cuenta no aparecen allí.
+### Consulta de pedidos propios
+
+```text
+GET /api/pedidos/mis-pedidos
+```
+
+Requiere token cliente.
+
+Respuesta exitosa:
+
+```json
+{
+  "pedidos": []
+}
+```
+
+La lista contiene los pedidos vinculados al ID de la cuenta autenticada, ordenados por fecha de creación descendente.
+
+El filtro no utiliza el email de contacto.
+
+Los pedidos presenciales sin cuenta cliente no aparecen en este listado.
+
+El frontend utiliza esta ruta en `/mis-pedidos`. Consulta al abrir la pantalla o recargarla; no implementa actualización en tiempo real.
+
+Se comprobó en producción que un cambio de estado administrativo aparece al recargar Mis pedidos desde la cuenta cliente.
 
 ### Documentos antiguos
 
@@ -811,7 +906,7 @@ El pedido de prueba fue eliminado.
 
 Antes de agregar presenciales, `probarAccesoPedidosEmail.js` comprobó:
 
-- Dos clientes con pedidos utilizando el mismo email.
+- Dos clientes con pedidos utilizando el mismo email de contacto.
 - Cada uno ve su pedido y no ve el ajeno.
 - Admin ve ambos.
 - Ambos clientes reciben 401 en las cinco rutas administrativas.
@@ -825,7 +920,7 @@ Resultado:
 Prueba de acceso a pedidos con email correcta: true
 ```
 
-Este script completo no se volvió a ejecutar después del cambio presencial.
+Este script completo no se volvió a ejecutar después del cambio presencial ni después del login unificado.
 
 ### Email web
 
@@ -910,7 +1005,7 @@ El pedido temporal de esta ronda fue eliminado.
 
 | Caso | Resultado |
 |---|---|
-| Creación con teléfono y sin email | Documento con origen presencial y creadoPor del admin. |
+| Creación con teléfono y sin email | Origen presencial y creadoPor del admin. |
 | Vínculo cliente | Sin cuenta cliente asociada. |
 | Consulta administrativa | 200. |
 | PUT cambia teléfono por email | 200. |
@@ -957,10 +1052,11 @@ Se comprobó:
 - CRUD de productos desde el panel.
 - Carga y reemplazo de fotografías.
 - Persistencia después de recargar.
-- Aparición de productos disponibles en la sección Productos del local.
-- Ocultamiento de productos no disponibles después de recargar.
-- Reaparición al restaurar la disponibilidad.
-- Navegación del menú en celular mediante sus controles.
+- Visualización de Productos del local y Catálogo original.
+
+La aparición de un producto temporal de la API, su ocultamiento al desactivarlo y los controles móviles de esa integración se probaron en local.
+
+No se presentan esas comprobaciones locales como una ronda completa de producción.
 
 El frontend conserva dos conjuntos separados:
 
@@ -984,9 +1080,9 @@ Se comprobó desde la web:
 - Cambio de estado y persistencia después de recargar.
 - Actualización del resumen de pedidos del Dashboard.
 
-La edición completa de datos y la eliminación de pedidos existen en la API, pero su incorporación a la interfaz administrativa quedó pendiente.
+La edición completa de datos y la eliminación de pedidos existen en la API, pero no están incorporadas a la interfaz administrativa.
 
-Los pedidos temporales creados en esta ronda desde la web deben revisarse y limpiarse por separado. No deben confundirse con los pedidos eliminados en las pruebas iniciales de Postman.
+Los pedidos temporales creados desde la web deben revisarse y limpiarse por separado. No deben confundirse con los pedidos eliminados en las pruebas iniciales de Postman.
 
 ### Usuarios
 
@@ -994,11 +1090,48 @@ Se comprobó el CRUD desde el panel publicado, incluyendo desactivación y persi
 
 El usuario temporal fue eliminado.
 
-### Alcance
+### Verificaciones del 23/10/2026
+
+#### Login unificado
+
+Se comprobó en local:
+
+- Solicitud vacía a `/api/auth/login-unificado`: 400 con errores de email y password.
+- Login de administrador desde el formulario compartido: acceso al panel.
+- Login de cliente desde el mismo formulario: acceso al inicio con saludo.
+- Intento de abrir `/admin` con solo sesión cliente: redirección al login administrativo.
+- Intento de usar credenciales cliente en `/admin/login`: rechazo.
+
+Se comprobó en producción:
+
+- Ruta `/api/auth/login-unificado` disponible en Render: solicitud vacía respondida con 400 de validación.
+- Login compartido de administrador y redirección al panel.
+- Login compartido de cliente y redirección al inicio.
+
+La protección visual de una ruta no reemplaza las pruebas de autorización de la API. Queda pendiente repetir las pruebas de permisos utilizando los tokens obtenidos por el login unificado.
+
+#### Mis pedidos
+
+Se comprobó:
+
+- Listado local de pedidos propios.
+- Acceso desde el Header en escritorio y menú móvil.
+- Pantalla publicada con el diseño aprobado.
+- Consulta de Mesa dulce para el 30/10/2026, cinco personas, evento Reunión.
+- Cambio de estado de Nuevo a Confirmado desde el panel administrativo publicado.
+- Visualización de Confirmado después de recargar Mis pedidos desde la cuenta cliente.
+
+Los estados no se actualizan automáticamente mientras la pantalla permanece abierta.
+
+#### Compilación
+
+Se ejecutó correctamente `pnpm build` en el frontend después de los cambios de login y Mis pedidos.
+
+### Alcance de las pruebas
 
 Estas comprobaciones confirman los flujos indicados.
 
-La revisión exhaustiva de validaciones, permisos, navegación y diseño en todos los tamaños de pantalla continúa como tarea de cierre.
+La revisión exhaustiva de validaciones, permisos, navegación, sesiones vencidas y diseño en todos los tamaños de pantalla continúa pendiente.
 
 ## Manejo de errores
 
@@ -1063,23 +1196,29 @@ Estas comprobaciones no crearon cuentas ni pedidos.
 | Registro con email duplicado | 409 |
 | Registro enviando rol | 400 |
 | Registro enviando activo | 400 |
-| Contraseña demasiado corta con el mínimo anterior de 12 caracteres | 400 en password; prueba histórica anterior al cambio. |
+| Contraseña demasiado corta con el mínimo anterior de 12 caracteres | 400; prueba histórica anterior al cambio. |
 | Límite de registro | 429 |
 | Límite de login cliente | 429 |
 | Límite de login admin | 429 |
 | Límite de creación web | 429 |
-| Creación web después de terminar el bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado. |
+| Creación web después del bloqueo | Vuelve a responder 400 por el cuerpo vacío utilizado. |
 
-Las pruebas aisladas del nuevo mínimo de 8 caracteres están documentadas en la sección Autenticación.
+Las pruebas aisladas del mínimo de 8 caracteres están documentadas en Autenticación.
+
+Las pruebas históricas de límites no implican haber probado el nuevo login unificado.
 
 ### Configuración
 
 | Operación | Límite |
 |---|---|
-| Login admin | 10 intentos fallidos por IP en 15 minutos. |
+| Login admin y login unificado | Comparten un limitador de 10 intentos fallidos por IP en 15 minutos. |
 | Registro cliente | 5 solicitudes por IP en 15 minutos. |
-| Login cliente | 10 solicitudes por IP en 15 minutos, incluidos éxitos. |
+| Login cliente exclusivo | 10 solicitudes por IP en 15 minutos, incluidos éxitos. |
 | Crear pedido web | 10 solicitudes por IP en 15 minutos después de autenticar. |
+
+El limitador compartido utiliza `skipSuccessfulRequests: true`. Las respuestas exitosas no quedan contabilizadas después de finalizar.
+
+El login exclusivo de clientes conserva su propio limitador.
 
 La creación administrativa no utiliza el limitador de pedidos web.
 
@@ -1095,9 +1234,9 @@ No se midieron todos los umbrales desde ventanas vacías.
 
 Siguen pendientes:
 
-- Recuperación después del bloqueo de registro y ambos logins.
+- Recuperación después del bloqueo de registro y logins.
+- Verificación del limitador compartido de login.
 - Verificación del rate limiting detrás del proxy de Render.
-- Otros escenarios de autenticación que se definan expresamente.
 
 Ejecutar pruebas de límites al final para evitar bloqueos durante las pruebas funcionales.
 
@@ -1107,15 +1246,27 @@ Colección versionada:
 
 [Descargar colección](./postman/Lara-Pasteleria-API.postman_collection.json)
 
-Se integraron las consultas administrativas de productos en el PR #22.
+La colección revisada el 23/10/2026 contiene 77 solicitudes.
 
-La colección incluye solicitudes de autenticación, productos, clientes, pedidos, usuarios y pedidos presenciales.
+| Grupo | Cantidad |
+|---|---:|
+| Autenticación administrativa y productos originales | 16 |
+| Pedidos web y administración | 15 |
+| Clientes y pedidos propios | 15 |
+| Usuarios | 5 |
+| Pedidos presenciales | 10 |
+| Productos administrativos adicionales | 2 |
+| Imágenes de productos | 6 |
+| Contraseñas mínimo 8 | 8 |
+| Total | 77 |
 
-Debe revisarse y contarse la versión final antes de la entrega, especialmente si se incorporan las solicitudes de imágenes utilizadas manualmente.
+Las solicitudes de imágenes y contraseñas ya están incorporadas.
 
-Las pruebas manuales de imágenes documentadas no implican que esas solicitudes ya estén guardadas en la colección versionada.
+El login unificado todavía no tiene solicitudes propias en esta colección. Sus pruebas manuales se documentan en este README.
 
 La colección no contiene aserciones automatizadas. El script previo calcula fechas; no verifica resultados.
+
+El conteo de solicitudes no implica que todas se hayan ejecutado juntas ni que todos sus escenarios estén aprobados.
 
 ### Entornos
 
@@ -1152,7 +1303,7 @@ Guardar los tokens sin comillas ni prefijo Bearer.
 
 En Authorization → Bearer Token, utilizar `{{token}}` o `{{clienteToken}}` según corresponda.
 
-Si un token recién obtenido funciona al pegarlo directamente pero falla al utilizar la variable, revisar el entorno seleccionado y el valor resuelto de esa variable.
+Si un token recién obtenido funciona al pegarlo directamente pero falla al utilizar la variable, revisar el entorno seleccionado y el valor resuelto.
 
 No exportar entornos con credenciales ni tokens reales.
 
@@ -1171,13 +1322,13 @@ Las fechas fijas utilizadas en pruebas anteriores no deben reutilizarse sin revi
 
 ### Orden y limpieza
 
-- Iniciar sesión y actualizar el token correspondiente.
-- Crear únicamente registros de prueba identificables.
-- Guardar sus IDs en las variables correspondientes.
-- Ejecutar consultas, modificaciones y rechazos.
-- Comprobar que los rechazos no alteraron los registros.
-- Eliminar los registros temporales.
-- Verificar 404 y ausencia en los listados correspondientes.
+1. Iniciar sesión y actualizar el token correspondiente.
+2. Crear únicamente registros de prueba identificables.
+3. Guardar sus IDs en las variables correspondientes.
+4. Ejecutar consultas, modificaciones y rechazos.
+5. Comprobar que los rechazos no alteraron los registros.
+6. Eliminar los registros temporales.
+7. Verificar 404 y ausencia en los listados correspondientes.
 
 No ejecutar toda la colección sin revisar el orden y los registros afectados.
 
@@ -1187,14 +1338,21 @@ Los archivos locales de Postman no quedan automáticamente disponibles para otra
 
 ## Coordinación con el frontend
 
+### Autenticación
+
+- `/login` utiliza POST /api/auth/login-unificado.
+- La respuesta compartida contiene token y usuario.
+- El frontend redirige según usuario.rol.
+- `/admin/login` conserva POST /api/auth/login.
+- Las audiencias y permisos se comprueban en el backend.
+- No se implementaron recuperación de contraseña ni correos automáticos.
+
 ### Contraseñas
 
-- El registro de clientes y la creación de administradores deben aceptar desde 8 caracteres.
-- El máximo del backend continúa siendo 72 bytes UTF-8.
-- Actualizar las validaciones y los mensajes visibles del frontend.
+- El backend admite creación desde 8 caracteres y hasta 72 bytes UTF-8.
+- El registro público del frontend ya utiliza el mínimo de 8.
+- El formulario de creación de administradores todavía exige 12.
 - Las cuentas existentes conservan sus contraseñas.
-
-La actualización del frontend debe realizarse por separado del despliegue del backend.
 
 ### Productos
 
@@ -1207,19 +1365,19 @@ La actualización del frontend debe realizarse por separado del despliegue del b
 - El catálogo público de la API solo muestra disponibles.
 - El catálogo estático del frontend continúa separado.
 
-### Pedidos presenciales
+### Pedidos
 
-- POST /api/pedidos/admin con token admin.
-- Al menos email o telefono.
-- Confirmación explícita para aceptar menos anticipación.
-- ID de creación en pedido._id.
-- PUT con ocho campos completos y confirmación cuando corresponda.
-- Mostrar teléfono cuando no haya email.
-- No asumir que todos los pedidos tienen cuenta cliente.
-- Cambiar estado mediante PATCH.
-- No enviar campos protegidos mediante POST o PUT.
-
-El flujo web conserva sus campos y autenticación de cliente.
+- POST /api/pedidos requiere token cliente.
+- GET /api/pedidos/mis-pedidos filtra por cuenta autenticada.
+- POST /api/pedidos/admin requiere token admin.
+- Los presenciales requieren al menos email o telefono.
+- La excepción de anticipación exige confirmación explícita.
+- El ID de creación presencial está en pedido._id.
+- PUT presencial requiere ocho campos completos y confirmación cuando corresponda.
+- No todos los pedidos tienen cuenta cliente.
+- Los estados cambian mediante PATCH.
+- Los campos protegidos no se envían en POST ni PUT.
+- Mis pedidos consulta los estados al abrirse o recargarse.
 
 ## Organización
 
@@ -1252,7 +1410,7 @@ src/
 
 ## Trabajo en equipo
 
-Trabajar en ramas separadas y coordinar los cambios de campos y rutas.
+Se utilizan ramas por tarea, commits descriptivos y Pull Requests hacia main.
 
 Desde una copia sin cambios pendientes:
 
@@ -1264,7 +1422,7 @@ git switch -c feat/nombre-de-la-tarea
 
 Revisar cambios, crear commit, subir la rama y abrir PR hacia main.
 
-### Integraciones confirmadas del backend
+### Integraciones registradas
 
 | PR | Cambio | Commit de merge |
 |---|---|---|
@@ -1278,27 +1436,65 @@ Revisar cambios, crear commit, subir la rama y abrir PR hacia main.
 | #23 | Carga de imágenes con Cloudinary y Multer. | ad96950 |
 | #24 | Manejo de errores de Multer. | b6e626e |
 | #25 | Validación de formato y diagnóstico de Cloudinary. | c82a10e |
+| #26 | Documentación de pruebas de imágenes en producción. | 6cc472e |
+| #27 | Contraseñas desde 8 caracteres. | b128331 |
+| #28 | Solicitudes de imágenes y contraseñas en Postman. | 9abde39 |
 
-## Pendientes
+El login unificado se integró posteriormente en main, con commit de merge `4894dff`.
 
-- Verificar en Render el cambio de contraseñas después de integrarlo y desplegarlo.
-- Actualizar formularios y mensajes del frontend al mínimo de 8 caracteres.
-- Comprobar la aplicación publicada con los procesos locales detenidos y desde otro dispositivo, sin depender de la computadora de desarrollo.
-- Definir el alojamiento adecuado para el uso diario de Lara y revisar la disponibilidad del backend.
-- Comprobar la recuperación después del bloqueo de registro y ambos logins.
-- Verificar el rate limiting detrás del proxy de Render.
-- Revisar y exportar la colección final de Postman.
-- Incorporar a la colección las pruebas de imágenes que se decida entregar.
-- Conservar las carpetas Usuarios y Pedidos presenciales al exportar.
-- Revisar la coherencia de README.md, PEDIDOS.md y USUARIOS.md.
-- Revisar los pedidos y cuentas temporales que permanezcan en la base.
+### Integrantes del backend
+
+#### Sofía Mendoza
+
+- Desarrollo del backend y pruebas.
+- Integración entre frontend, API y despliegues.
+- Implementación y verificación de flujos de autenticación y pedidos.
+
+#### Yamila Valdez Aguilar
+
+- Implementación del módulo de Usuarios.
+- Implementación de carga de imágenes.
+- Integración del panel administrativo con la API.
+
+#### Veronica Teresa Lopez Fernandez
+
+- Revisión del backend.
+
+El frontend se desarrolla en su repositorio independiente y conserva sus propios créditos.
+
+## Pendientes y límites actuales
+
+- Ajustar el formulario de creación de administradores de 12 a 8 caracteres.
+- Incorporar solicitudes del login unificado a Postman.
+- Repetir pruebas de permisos con tokens obtenidos por el login unificado.
+- Comprobar recuperación después del bloqueo de registro y logins.
+- Verificar el limitador compartido y el rate limiting detrás del proxy de Render.
+- Completar pruebas de sesiones vencidas y presentación de errores.
+- Revisar pedidos y cuentas temporales antes de eliminarlos.
 - Resolver la limpieza de imágenes sin uso en Cloudinary.
-- Incorporar edición completa y eliminación de pedidos al frontend cuando se retome esa tarea.
-- Completar la migración del catálogo estático si se decide administrar todos sus productos desde MongoDB.
-- Revisar presentaciones y precios múltiples antes de migrar productos que actualmente los utilizan.
-- Completar la revisión responsive y de errores de todos los flujos.
-- Preparar los archivos y enlaces de entrega.
+- Completar los escenarios de errores de subida todavía no comprobados.
+- Incorporar edición completa y eliminación de pedidos al frontend si se amplía esa interfaz.
+- Completar la migración del catálogo estático si se decide administrarlo desde MongoDB.
+- Conservar presentaciones y precios múltiples al migrar.
+- Completar la revisión responsive en dispositivos reales.
+- Evaluar disponibilidad y alojamiento para el uso cotidiano de Lara.
 
-Las pruebas locales, las solicitudes manuales en Render y los flujos desde el frontend publicado se registran por separado.
+No están implementados:
+
+- Recuperación de contraseña.
+- Envío automático de correos o mensajes.
+- Actualización de estados en tiempo real.
+- Carrito ni pagos online.
+- Notificaciones funcionales mediante la campanita del panel.
+
+## Estado de entrega
+
+La API está publicada en Render y conectada a MongoDB Atlas y Cloudinary.
+
+El frontend está publicado en Vercel y conectado a esta API.
+
+Los repositorios, la documentación y la colección de Postman están enlazados al comienzo de este README.
+
+La documentación distingue las pruebas locales, las solicitudes manuales contra Render y los flujos comprobados desde el frontend publicado.
 
 Un resultado anterior no prueba automáticamente un cambio posterior.
