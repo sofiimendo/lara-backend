@@ -2,16 +2,23 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import Usuario from '../models/Usuario.js'
 
-export async function iniciarSesion({ email, password }) {
+async function autenticarUsuario({ email, password }, rolRequerido) {
   const secret = process.env.JWT_SECRET
 
   if (!secret || secret.length < 32) {
     throw new Error('JWT_SECRET debe tener al menos 32 caracteres')
   }
 
-  const usuario = await Usuario.findOne({ email }).select('+passwordHash')
+  const usuario = await Usuario.findOne({
+    email: email.trim().toLowerCase(),
+  }).select('+passwordHash')
 
-  if (!usuario || !usuario.activo || usuario.rol !== 'admin') {
+  if (
+    !usuario ||
+    !usuario.activo ||
+    !['admin', 'cliente'].includes(usuario.rol) ||
+    (rolRequerido && usuario.rol !== rolRequerido)
+  ) {
     return null
   }
 
@@ -31,7 +38,9 @@ export async function iniciarSesion({ email, password }) {
       algorithm: 'HS256',
       subject: usuario._id.toString(),
       issuer: 'lara-backend',
-      audience: 'lara-admin',
+      audience: usuario.rol === 'admin'
+        ? 'lara-admin'
+        : 'lara-cliente',
       expiresIn: '1h',
     }
   )
@@ -45,4 +54,12 @@ export async function iniciarSesion({ email, password }) {
       rol: usuario.rol,
     },
   }
+}
+
+export async function iniciarSesion(datos) {
+  return autenticarUsuario(datos, 'admin')
+}
+
+export async function iniciarSesionUnificada(datos) {
+  return autenticarUsuario(datos)
 }
